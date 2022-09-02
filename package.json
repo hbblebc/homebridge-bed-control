@@ -32,7 +32,6 @@
     "Sleep Number",
     "SleepIQ"
   ],
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^16.10.9",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
@@ -47,5 +46,8 @@
   "funding": {
     "type": "bitcoin",
     "url": "15sPZBv33rFAtED4ZLBDsKiQ8bgVY1cKzv"
+  },
+  "dependencies": {
+    "axios": "^0.27.2"
   }
 }
