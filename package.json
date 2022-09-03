@@ -48,6 +48,8 @@
     "url": "15sPZBv33rFAtED4ZLBDsKiQ8bgVY1cKzv"
   },
   "dependencies": {
-    "axios": "^0.27.2"
+    "axios": "^0.27.2",
+    "axios-cookiejar-support": "^4.0.3",
+    "tough-cookie": "^4.1.2"
   }
 }
