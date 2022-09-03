@@ -38,9 +38,9 @@
         "title": "Refresh Time (in seconds)",
         "type": "integer",
         "required": false,
-        "placeholder": 60,
-        "description": "Set to a larger number to increase the time between fetching state from the bed platform. This can greatly reduce the number of network requests being made if you don't need immediate data (doesn't effect controlling the bed). Note, there is little benefit in setting it below 5 seconds. Some bed companies have been known to go after accounts making too many network requests, so set this lower at your own risk.",
-        "min": 5,
+        "default": 0,
+        "description": "Set to a larger number to increase the time between fetching state from the bed platform. This can greatly reduce the number of network requests being made if you don't need immediate data (doesn't effect controlling the bed). Note, there is no benefit in setting it below 5 seconds. Some bed companies have been known to go after accounts making too many network requests, so set this lower at your own risk. Setting it to 0 will disable the regular polling, making the occupancy sensors useless. The rest of the controls will continue to function without issue. I recommend setting it to at least 30 or 60 if you desire occupancy detection.",
+        "min": 0,
         "max": 3600
       },
       "delay": {

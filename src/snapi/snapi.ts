@@ -120,7 +120,16 @@ class snapi {
   protected userId: string = '';
   protected bedID: string[] = [];
   protected key: string = '';
+
   public beds: BedState[] = [];
+  public bedsStats: BedStats[] = [];
+  public foundationData?: FoundationStatusData;
+  public outletData?: OutletStatusData;
+  public pauseMode?: BedPauseModeData;
+  public bedStatusData?: {
+    bedStatusData: BedStatusData,
+    bedId: string
+  }
 
   constructor(
     private readonly username: string,
@@ -241,11 +250,16 @@ class snapi {
     })
     .then(res => {
       const { data } = res;
+      this.bedStatusData = {
+        bedStatusData: data,
+        bedId: bedId
+      }
 
       if (this.log) this.log.info(JSON.stringify(data, null, 2));
       else console.info(JSON.stringify(data, null, 2));
     })
     .catch(err => {
+      this.bedStatusData = undefined;
       if (this.log) this.log.error(err);
       else console.error(err);
     })
@@ -260,11 +274,13 @@ class snapi {
     })
     .then(res => {
       const { data } = res;
+      this.pauseMode = data;
 
       if (this.log) this.log.info(JSON.stringify(data, null, 2));
       else console.info(JSON.stringify(data, null, 2));
     })
     .catch(err => {
+      this.pauseMode = undefined;
       if (this.log) this.log.error(err);
       else console.error(err);
     })
@@ -451,11 +467,13 @@ class snapi {
     })
     .then(res => {
       const { data } = res;
+      this.foundationData = data;
 
       if (this.log) this.log.debug(JSON.stringify(data, null, 2));
       else console.debug(JSON.stringify(data, null, 2));
     })
     .catch(err => {
+      this.foundationData = undefined;
       if (this.log) this.log.error(err);
       else console.error(err);
     })
@@ -471,11 +489,13 @@ class snapi {
     })
     .then(res => {
       const { data } = res;
+      this.outletData = data;
 
       if (this.log) this.log.debug(JSON.stringify(data, null, 2));
       else console.debug(JSON.stringify(data, null, 2));
     })
     .catch(err => {
+      this.outletData = undefined;
       if (this.log) this.log.error(err);
       else console.error(err);
     })
@@ -669,6 +689,24 @@ class snapi {
     .then(res => {
       const { data } = res;
       
+      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
+      else console.debug(JSON.stringify(data, null, 2));
+    })
+    .catch(err => {
+      if (this.log) this.log.error(err);
+      else console.error(err);
+    })
+  }
+
+  diagnostics() {
+    client.get('https://svcsleepiq.sleepnumber.com/bam/device/getConfig.jsp', {
+      params: {
+        deviceId: '-9223372019955931774'
+      }
+    })
+    .then(res => {
+      const { data } = res;
+
       if (this.log) this.log.debug(JSON.stringify(data, null, 2));
       else console.debug(JSON.stringify(data, null, 2));
     })

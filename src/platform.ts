@@ -2,7 +2,10 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { ExamplePlatformAccessory } from './platformAccessory';
-import snapi from './snapi';
+import Snapi from './snapi/snapi';
+import { BedSideState, BedState, Outlets_e } from './snapi/interfaces';
+import { PrivacySwitchAccessory } from './accessories/privacySwitchAccessory';
+import { OccupancySensorAccessory } from './accessories/occupancySensorAccessory';
 
 /**
  * HomebridgePlatform
@@ -16,12 +19,12 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
   // this is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
 
-  public disabled: Boolean;
-  public username: String;
-  public password: String;
-  public refreshTime: Number;
-  public sendDelay: Number;
-  public snapi: snapi;
+  public disabled: boolean;
+  public username: string;
+  public password: string;
+  public refreshTime: number;
+  public sendDelay: number;
+  public snapi: Snapi;
 
   constructor(
     public readonly log: Logger,
@@ -32,16 +35,16 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     this.disabled = false;
     this.username = config["email"];
     this.password = config["password"];
-    this.refreshTime = (config["refreshTime"] || 60) * 1000; // update values from the API every 60 seconds
+    this.refreshTime = (config["refreshTime"] || 0) * 1000; // update values from the API every # seconds
     this.sendDelay = (config["sendDelay"] || 2) * 1000; // delay updating bed numbers by 2 seconds
 
-    if (!this.username || !this.password) {
-      log.warn("Ignoring BedControl setup because username or password was not provided.");
-      this.disabled = true;
-      return;
-    }
+    // if (!this.username || !this.password) {
+    //   this.log.warn("Ignoring BedControl setup because username or password was not provided.");
+    //   this.disabled = true;
+    //   return;
+    // }
 
-    this.snapi = new snapi(this.username, this.password);
+    this.snapi = new Snapi(this.username, this.password, this.log);
 
 
     this.log.debug('Finished initializing platform:', this.config.name);
@@ -74,158 +77,101 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
    * must not be registered again to prevent "duplicate UUID" errors.
    */
   async discoverDevices() {
-    await this.authenticate();
-    if (!this.snapi.key) {
-      this.disabled = true;
-      return;
-    }
 
     // Attempt to retrieve main dataset
-    try {
-      await this.snapi.familyStatus( (data, err=null) => {
-        if (err) {
-          this.log.debug(data, err);
-        } else {
-          this.log.debug("Family Status GET results:", data);
-        }
-      });
-    } catch(err) {
-      if (typeof err === 'string')
-        err = JSON.parse(err)
-      if (!(err.statusCode === 401) && !(err.statusCode === 50002)) {
-        this.log.error("Failed to retrieve family status:",JSON.stringify(err));
-      }
-    }
+    this.snapi.familyStatus();
+    this.snapi.bed();
+
 
     // Loop through each bed
-    this.snapi.json.beds.forEach( async function (bed, index) {
-      let bedName = "bed" + index
-      let bedID = bed.bedId
-      let sides = JSON.parse(JSON.stringify(bed))
-      delete sides.status
-      delete sides.bedId
+    this.snapi.beds.forEach((bed: BedState, bedIdx: number) => {
+
+      const bedStats = this.snapi.bedsStats.find(b => b.bedId === bed.bedId)
       
       // Check if there is a foundation attached
-      try {
-        await this.snapi.foundationStatus((async (data, err=null) => {
-          if (err) {
-            this.log.debug(data, err);
-          } else {
-            this.log.debug("foundationStatus result:", data);
-            let foundationStatus = JSON.parse(data);
-            if(foundationStatus.hasOwnProperty('Error')) {
-              if (foundationStatus.Error.Code === 404) {
-                this.log("No foundation detected");
-              } else {
-                this.log("Unknown error occurred when checking the foundation status. See previous output for more details. If it persists, please report this incident at https://github.com/DeeeeLAN/homebridge-sleepiq/issues/new");
-              }
-            } else {
-              this.hasFoundation = true;
+      this.snapi.foundationStatus(bed.bedId);
 
-              // check if the foundation has outlets
-              try {
-                await this.snapi.outletStatus('1', ((data, err=null) => {
-                  if (err) {
-                    this.log.debug(data, err);
-                  } else {
-                    this.log.debug("outletStatus result:", data);
-                    let outletStatus = JSON.parse(data);
-                    if(outletStatus.hasOwnProperty('Error')) {
-                      if (outletStatus.Error.Code === 404) {
-                        this.log("No outlet detected");
-                      } else {
-                        this.log("Unknown error occurred when checking the outlet status. See previous output for more details. If it persists, please report this incident at https://github.com/DeeeeLAN/homebridge-sleepiq/issues/new");
-                      }
-                    } else {
-                      this.hasOutlets = true
-                    }
-                  }
-                }).bind(this));
-              } catch(err) {
-                if (typeof err === 'string' || err instanceof String)
-                  err = JSON.parse(err)
-                if (!(err.statusCode === 404)) {
-                  this.log("Failed to retrieve outlet status:", JSON.stringify(err));
-                }
-              }
+      if (this.snapi.foundationData !== undefined) {
+        // Check if the foundation has any outlets (1-2) or lights (3-4)
+        [
+          Outlets_e.Left_plug, 
+          Outlets_e.Right_plug, 
+          Outlets_e.Left_light, 
+          Outlets_e.Right_light
+        ].forEach((outlet) => {
+          this.snapi.outletStatus(bed.bedId, outlet);
 
-              // check if the foundation has lightstrips
-              try {
-                await this.snapi.outletStatus('3', ((data, err=null) => {
-                  if (err) {
-                    this.log.debug(data, err);
-                  } else {
-                    this.log.debug("outletStatus result:", data);
-                    let outletStatus = JSON.parse(data);
-                    if(outletStatus.hasOwnProperty('Error')) {
-                      if (outletStatus.Error.Code === 404) {
-                        this.log("No lightstrip detected");
-                      } else {
-                        this.log("Unknown error occurred when checking the lightstrip status. See previous output for more details. If it persists, please report this incident at https://github.com/DeeeeLAN/homebridge-sleepiq/issues/new");
-                      }
-                    } else {
-                      this.hasLightstrips = true
-                    }
-                  }
-                }).bind(this));
-              } catch(err) {
-                if (typeof err === 'string' || err instanceof String)
-                  err = JSON.parse(err)
-                if (!(err.statusCode === 404)) {
-                  this.log("Failed to retrieve lightstrip status:", JSON.stringify(err));
-                }
-              }
-
-            }
+          if (this.snapi.outletData !== undefined) {
+            // TODO: add outlet device
           }
-        }).bind(this));
-      } catch(err) {
-        if (typeof err === 'string' || err instanceof String)
-          err = JSON.parse(err)
-        if (!(err.statusCode === 404)) {
-          this.log("Failed to retrieve foundation status:", JSON.stringify(err));
-        }
+        })
       }
-      
-      // Check if bed has privacy mode
-      if(!this.accessories.has(bedID+'privacy')) {
-        this.log("Found Bed Privacy Switch: ", bedName);
-        
-        let uuid = UUIDGen.generate(bedID+'privacy');
-        let bedPrivacy = new Accessory(bedName+'privacy', uuid);
-        
-        bedPrivacy.context.sideID = bedID+'privacy';
-        bedPrivacy.context.type = 'privacy';
-        
-        bedPrivacy.addService(Service.Switch, bedName+'Privacy');
-        
-        let bedPrivacyAccessory = new snPrivacy(this.log, bedPrivacy, this.snapi);
-        bedPrivacyAccessory.getServices();
-        
-        this.api.registerPlatformAccessories('homebridge-sleepiq', 'SleepIQ', [bedPrivacy]);
-        this.accessories.set(bedID+'privacy', bedPrivacyAccessory);
+
+      // Add privacy mode switch
+      const privacyUuid = this.api.hap.uuid.generate(bed.bedId + 'privacy');
+      const existingPrivacySwitch = this.accessories.find(a => a.UUID === privacyUuid);
+
+      if (existingPrivacySwitch) {
+        // the accessory already exists
+        this.log.info('Restoring existing privacy switch from cache:', existingPrivacySwitch.displayName);
+
+        // create the accessory handler for the restored accessory
+        // this is imported from `platformAccessory.ts`
+        new PrivacySwitchAccessory(this, existingPrivacySwitch, this.snapi);
       } else {
-        this.log(bedName + " privacy already added from cache");
+        // the accessory does not yet exist, so we need to create it
+        this.log.info('Adding new privacy switch for bed:', bedStats!.name);
+
+        // create a new accessory
+        const privacySwitch = new this.api.platformAccessory(`${bedStats!.name} Privacy`, privacyUuid);
+
+        // the `context` property can be used to store any data about the accessory you may need
+        privacySwitch.context.name = bedStats!.name;
+        privacySwitch.context.bedId = bedStats!.bedId;
+        privacySwitch.context.Manufacturer = 'Sleep Number';
+        privacySwitch.context.Model = bedStats!.model;
+        privacySwitch.context.SerialNumber = bedStats!.bedId;
+
+        // create the accessory handler for the newly create accessory
+        // this is imported from `platformAccessory.ts`
+        new PrivacySwitchAccessory(this, privacySwitch, this.snapi);
+
+        // link the accessory to your platform
+        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [privacySwitch]);
+
       }
+
+      // Register occupancy sensors
+      ['leftSide', 'rightSide'].forEach((sideName) => {
+        const bedSide: BedSideState = bed[sideName];
+
+        const bedSideUuid = this.api.hap.uuid.generate(bed.bedId + sideName);
+        const existingBedSideOccupancy = this.accessories.find(a => a.UUID === bedSideUuid);
+
+        if (existingBedSideOccupancy) {
+          this.log.info('Restoring existing occupancy sensor from cache:', existingBedSideOccupancy.displayName);
+
+          new OccupancySensorAccessory(this, existingBedSideOccupancy, this.snapi);
+        } else {
+          this.log.info(`Adding new occupancy sensor for bed: ${bedStats!.name}, side: ${sideName}`);
+
+          const bedSideOccupancy = new this.api.platformAccessory(`${bedStats!.name} ${sideName} Occupancy`, bedSideUuid);
+
+          bedSideOccupancy.context.name = bedStats!.name;
+          bedSideOccupancy.context.bedId = bedStats!.bedId;
+          bedSideOccupancy.context.side = sideName;
+          bedSideOccupancy.context.updateInterval = this.refreshTime;
+          bedSideOccupancy.context.Manufacturer = 'Sleep Number';
+          bedSideOccupancy.context.Model = bedStats!.model;
+          bedSideOccupancy.context.SerialNumber = bedStats!.bedId;
+
+          new OccupancySensorAccessory(this, bedSideOccupancy, this.snapi);
+
+          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [bedSideOccupancy]);
+  
+        }
+      })
       
-      // function to register an occupancy sensor
-      const registerOccupancySensor = (sideName, sideID) => {
-        this.log("Found BedSide Occupancy Sensor: ", sideName);
-        
-        let uuid = UUIDGen.generate(sideID+'occupancy');
-        let bedSideOcc = new Accessory(sideName+'occupancy', uuid);
-        
-        bedSideOcc.context.sideID = sideID+'occupancy';
-        bedSideOcc.context.type = 'occupancy';
-        
-        bedSideOcc.addService(Service.OccupancySensor, sideName+'Occupancy');
-        
-        let bedSideOccAccessory = new snOccupancy(this.log, bedSideOcc);
-        bedSideOccAccessory.getServices();
-        
-        this.api.registerPlatformAccessories('homebridge-sleepiq', 'SleepIQ', [bedSideOcc]);
-        this.accessories.set(sideID+'occupancy', bedSideOccAccessory);
-      }
       
       // loop through each bed side
       Object.keys(sides).forEach( function (bedside, index) {
@@ -366,16 +312,10 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     
   }
     
-  async authenticate () {
+  authenticate () {
     try {
       this.log.debug('SleepIQ Authenticating...')
-      await this.snapi.login((data, err=null) => {
-        if (err) {
-          this.log.debug(data, err);
-        } else {
-          this.log.debug("Login result:", data);
-        }
-      });
+      this.snapi.login(this.username, this.password);
     } catch(err) {
       this.log.info("Failed to authenticate with SleepIQ. Please double-check your username and password. Disabling SleepIQ plugin. Error:",err.error);
       this.disabled = true;
