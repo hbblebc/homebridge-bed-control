@@ -130,6 +130,7 @@ class snapi {
     bedStatusData: BedStatusData,
     bedId: string
   }
+  public footwarmingData?: FootwarmingStatusData;
 
   constructor(
     private readonly username: string,
@@ -143,8 +144,8 @@ class snapi {
 
 
   login(
-    username: string,
-    password: string,
+    username: string = this.username,
+    password: string = this.password,
   ) {
     client.put<LoginData>(loginURL, {
       'login': username,
@@ -184,12 +185,17 @@ class snapi {
   }
 
 
-  familyStatus() {
-    client.get<FamilyStatusData>(familyStatusURL, {
+  getFamilyStatus() {
+    return client.get<FamilyStatusData>(familyStatusURL, {
       params: {
         _k: this.key
       }
     })
+  }
+
+
+  familyStatus() {
+    this.getFamilyStatus()
     .then(res => {
       const { data } = res;
       this.beds = data.beds;
@@ -242,12 +248,17 @@ class snapi {
   }
 
 
-  bedStatus(bedId: string) {
-    client.get<BedStatusData>(bedStatusURL.format(bedId), {
+  getBedStatus(bedId: string) {
+    return client.get<BedStatusData>(bedStatusURL.format(bedId), {
       params: {
         _k: this.key
       }
     })
+  }
+
+
+  bedStatus(bedId: string) {
+    this.getBedStatus(bedId)
     .then(res => {
       const { data } = res;
       this.bedStatusData = {
@@ -266,12 +277,17 @@ class snapi {
   }
 
 
-  bedPauseMode(bedId: string) {
-    client.get<BedPauseModeData>(bedPauseModeURL.format(bedId), {
+  getBedPauseMode(bedId: string) {
+    return client.get<BedPauseModeData>(bedPauseModeURL.format(bedId), {
       params: {
         _k: this.key
       }
     })
+  }
+
+
+  bedPauseMode(bedId: string) {
+    this.getBedPauseMode(bedId)
     .then(res => {
       const { data } = res;
       this.pauseMode = data;
@@ -593,11 +609,13 @@ class snapi {
     })
     .then(res => {
       const { data } = res;
+      this.footwarmingData = data;
 
       if (this.log) this.log.debug(JSON.stringify(data, null, 2));
       else console.debug(JSON.stringify(data, null, 2));
     })
     .catch(err => {
+      this.footwarmingData = undefined;
       if (this.log) this.log.error(err);
       else console.error(err);
     })

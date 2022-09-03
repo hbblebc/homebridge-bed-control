@@ -34,8 +34,8 @@
         "required": true,
         "placeholder": "Password"
       },
-      "refresh": {
-        "title": "Refresh Time (in seconds)",
+      "updateInterval": {
+        "title": "Update Interval (in seconds)",
         "type": "integer",
         "required": false,
         "default": 0,

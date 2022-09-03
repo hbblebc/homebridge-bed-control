@@ -327,3 +327,25 @@ export interface SleeperSliceData {
 export interface SleepSliceDataData {
   sleepers: SleeperSliceData[]
 }
+
+// bedFeatures type
+export interface SideFeatures {
+  occupancy: boolean,
+  numberControl: boolean,
+  responsiveAir: boolean,
+  headControl: boolean,
+  footControl: boolean,
+  outlet: boolean,
+  light: boolean,
+  footwarming: boolean
+}
+export interface BedFeatures {
+  privacy: boolean,
+  foundation: boolean,
+  leftSide: SideFeatures,
+  rightSide: SideFeatures,
+  anySide: SideFeatures,
+  Manufacturer: string,
+  Model: string,
+  SerialNumber: string
+}
