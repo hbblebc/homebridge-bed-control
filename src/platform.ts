@@ -1,12 +1,8 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { ExamplePlatformAccessory } from './platformAccessory';
 import Snapi from './snapi/snapi';
-import { BedFeatures, BedSideState, BedState, Outlets_e } from './snapi/interfaces';
-import { PrivacySwitchAccessory } from './accessories/privacySwitchAccessory';
-import { OccupancySensorAccessory } from './accessories/occupancySensorAccessory';
-import { ConfigureBridgedAccessory } from 'hap-nodejs/dist/lib/definitions';
+import { BedFeatures, BedSide_e, BedState, Outlets_e } from './snapi/interfaces';
 import { BedAccessory } from './bedAccessory';
 
 /**
@@ -26,6 +22,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
   public password: string;
   public updateInterval: number;
   public sendDelay: number;
+  public platform: string;
   public snapi: Snapi;
 
   constructor(
@@ -39,6 +36,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     this.password = config["password"];
     this.updateInterval = (config["updateInterval"] || 0) * 1000; // update values from the API every # seconds
     this.sendDelay = (config["sendDelay"] || 2) * 1000; // delay updating bed numbers by 2 seconds
+    this.platform = config["Bed Platform"];
 
     // if (!this.username || !this.password) {
     //   this.log.warn("Ignoring BedControl setup because username or password was not provided.");
@@ -59,6 +57,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
       log.debug('Executed didFinishLaunching callback');
       // run the method to discover / register your devices as accessories
       this.discoverDevices();
+      this.poll();
     });
   }
 
@@ -143,22 +142,22 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
         bedFeatures.rightSide.footControl = true;
 
         // Check if the foundation has any outlets (1-2) or lights (3-4)
-        this.snapi.outletStatus(bed.bedId, Outlets_e.Left_plug);
+        this.snapi.outletStatus(bed.bedId, Outlets_e.LeftPlug);
         if (this.snapi.outletData !== undefined) {
           bedFeatures.leftSide.outlet = true;
         }
 
-        this.snapi.outletStatus(bed.bedId, Outlets_e.Right_plug);
+        this.snapi.outletStatus(bed.bedId, Outlets_e.RightPlug);
         if (this.snapi.outletData !== undefined) {
           bedFeatures.rightSide.outlet = true;
         }
 
-        this.snapi.outletStatus(bed.bedId, Outlets_e.Left_light);
+        this.snapi.outletStatus(bed.bedId, Outlets_e.LeftLight);
         if (this.snapi.outletData !== undefined) {
           bedFeatures.leftSide.light = true;
         }
 
-        this.snapi.outletStatus(bed.bedId, Outlets_e.Right_light);
+        this.snapi.outletStatus(bed.bedId, Outlets_e.RightLight);
         if (this.snapi.outletData !== undefined) {
           bedFeatures.rightSide.outlet = true;
         }
@@ -215,14 +214,37 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
       
     })
   }
-    
-  authenticate () {
-    try {
-      this.log.debug('SleepIQ Authenticating...')
-      this.snapi.login(this.username, this.password);
-    } catch(err) {
-      this.log.info("Failed to authenticate with SleepIQ. Please double-check your username and password. Disabling SleepIQ plugin. Error:",err.error);
-      this.disabled = true;
+
+
+  async poll() {
+    if (this.updateInterval > 0) {
+      setInterval(() => {
+        this.snapi.getFamilyStatus().then(res => {
+          const { data } = res;
+          data.beds.forEach(bed => {
+            const bedAccessory = this.accessories.find(a => a.context.bedStats.bedid === bed.bedId);
+            if (bedAccessory) {
+              [BedSide_e.LeftSide, BedSide_e.RightSide].forEach(side => {
+                bedAccessory.services[side].occupancySensor.updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
+                bedAccessory.services[side].numberControl.updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
+              })
+            }
+          })
+        })
+      }, this.updateInterval);
     }
+  }
+
+
+  authenticate() {
+    if (this.platform === "sleep number") {
+      this.authenticate_sn();
+    }
+  }
+
+    
+  authenticate_sn () {
+    this.log.debug('SleepIQ re-authenticating...')
+    this.snapi.login(this.username, this.password);
   }
 }

@@ -1,3 +1,5 @@
+import { HeaterCooler, Lightbulb, OccupancySensor, Outlet, Switch } from "hap-nodejs/dist/lib/definitions"
+
 // login types
 export interface LoginData {
   userId: string,
@@ -126,7 +128,9 @@ export interface BedPauseModeData {
 // sleep number types
 export enum BedSide_e {
   Left = 'L',
-  Right = 'R'
+  Right = 'R',
+  LeftSide = 'leftSide',
+  RightSide = 'rightSide'
 }
 
 export interface SleepNumberData {}
@@ -231,10 +235,10 @@ export interface FoundationStatusData {
 
 // outlet status types
 export enum Outlets_e {
-  Left_plug = 1,
-  Right_plug = 2,
-  Left_light = 3,
-  Right_light = 4
+  LeftPlug = 1,
+  RightPlug = 2,
+  LeftLight = 3,
+  RightLight = 4
 }
 
 export enum Outlet_Setting_e {
@@ -243,7 +247,10 @@ export enum Outlet_Setting_e {
 }
 
 export interface OutletStatusData {
-  // TODO
+  bedId: string,
+  outlet: Outlets_e,
+  setting: Outlet_Setting_e,
+  timer: any , // TODO: check type
 }
 
 // motion types
@@ -339,6 +346,7 @@ export interface SideFeatures {
   light: boolean,
   footwarming: boolean
 }
+
 export interface BedFeatures {
   privacy: boolean,
   foundation: boolean,
@@ -348,4 +356,24 @@ export interface BedFeatures {
   Manufacturer: string,
   Model: string,
   SerialNumber: string
+}
+
+// services type
+export interface SideServices {
+  occupancySensor?: OccupancySensor,
+  numberControl?: Lightbulb,
+  responsiveAir?: Switch,
+  headControl?: Lightbulb,
+  footControl?: Lightbulb,
+  leftSideOutlet?: Outlet,
+  rightSideOutlet?: Outlet,
+  leftSideLight?: Outlet,
+  rightSideLight?: Outlet,
+  footwarmingControl?: HeaterCooler
+}
+
+export interface Services {
+  privacySwitch?: Switch,
+  leftSide?: SideServices,
+  rightSide?: SideServices
 }

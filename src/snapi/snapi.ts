@@ -156,12 +156,12 @@ class snapi {
       this.userId = data.userId;
       this.key = data.key;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][login]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][login]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][login]', err);
+      else console.error('[snapi][login]', err);
     })
   }
 
@@ -175,12 +175,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.info(JSON.stringify(data, null, 2));
-      else console.info(JSON.stringify(data, null, 2));
+      if (this.log) this.log.info('[snapi][registration]', JSON.stringify(data, null, 2));
+      else console.info('[snapi][registration]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][registration]', err);
+      else console.error('[snapi][registration]', err);
     })
   }
 
@@ -200,12 +200,12 @@ class snapi {
       const { data } = res;
       this.beds = data.beds;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][familyStatus', err);
+      else console.error('[snapi][familyStatus', err);
     })
   }
 
@@ -219,12 +219,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.info(JSON.stringify(data, null, 2));
-      else console.info(JSON.stringify(data, null, 2));
+      if (this.log) this.log.info('[snapi][sleeper]', JSON.stringify(data, null, 2));
+      else console.info('[snapi][sleeper]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][sleeper]', err);
+      else console.error('[snapi][sleeper]', err);
     })
   }
 
@@ -238,12 +238,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.info(JSON.stringify(data, null, 2));
-      else console.info(JSON.stringify(data, null, 2));
+      if (this.log) this.log.info('[snapi][bed]', JSON.stringify(data, null, 2));
+      else console.info('[snapi][bed]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][bed]', err);
+      else console.error('[snapi][bed]', err);
     })
   }
 
@@ -266,13 +266,13 @@ class snapi {
         bedId: bedId
       }
 
-      if (this.log) this.log.info(JSON.stringify(data, null, 2));
-      else console.info(JSON.stringify(data, null, 2));
+      if (this.log) this.log.info('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+      else console.info('[snapi][bedStatus]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
       this.bedStatusData = undefined;
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][bedStatus]', err);
+      else console.error('[snapi][bedStatus]', err);
     })
   }
 
@@ -292,13 +292,13 @@ class snapi {
       const { data } = res;
       this.pauseMode = data;
 
-      if (this.log) this.log.info(JSON.stringify(data, null, 2));
-      else console.info(JSON.stringify(data, null, 2));
+      if (this.log) this.log.info('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+      else console.info('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
       this.pauseMode = undefined;
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][bedPauseMode]', err);
+      else console.error('[snapi][bedPauseMode]', err);
     })
   }
 
@@ -313,12 +313,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.info(JSON.stringify(data, null, 2));
-      else console.info(JSON.stringify(data, null, 2));
+      if (this.log) this.log.info('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+      else console.info('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][setBedPauseMode]', err);
+      else console.error('[snapi][setBedPauseMode]', err);
     })
   }
 
@@ -338,30 +338,35 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][sleepNumber]', err);
+      else console.error('[snapi][sleepNumber]', err);
     })
   }
 
-  responsiveAirStatus(bedId: string) {
-    client.get<ResponsiveAirStatusData>(responsiveAirURL.format(bedId), {
+
+  getResponsiveAirStatus(bedId: string) {
+    return client.get<ResponsiveAirStatusData>(responsiveAirURL.format(bedId), {
       params: {
         _k: this.key,
       }
     })
+  }
+
+  responsiveAirStatus(bedId: string) {
+    this.getResponsiveAirStatus(bedId)
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][responsiveAirStatus]', err);
+      else console.error('[snapi][responsiveAirStatus]', err);
     })
   }
 
@@ -377,12 +382,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][responsiveAir]', err);
+      else console.error('[snapi][responsiveAir]', err);
     })
   }
 
@@ -397,12 +402,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][forceIdle]', err);
+      else console.error('[snapi][forceIdle]', err);
     })
   }
 
@@ -416,12 +421,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][pumpStatus]', err);
+      else console.error('[snapi][pumpStatus]', err);
     })
   }
 
@@ -438,12 +443,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][preset]', err);
+      else console.error('[snapi][preset]', err);
     })
   }
 
@@ -465,60 +470,70 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][adjust]', err);
+      else console.error('[snapi][adjust]', err);
+    })
+  }
+
+
+  getFoundationStatus(bedId: string) {
+    return client.get<FoundationStatusData>(foundationStatusURL.format(bedId), {
+      params: {
+        _k: this.key,
+      }
     })
   }
 
 
   foundationStatus(bedId: string) {
-    client.get<FoundationStatusData>(foundationStatusURL.format(bedId), {
-      params: {
-        _k: this.key,
-      }
-    })
+    this.getFoundationStatus(bedId)
     .then(res => {
       const { data } = res;
       this.foundationData = data;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
       this.foundationData = undefined;
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][foundationStatus]', err);
+      else console.error('[snapi][foundationStatus]', err);
     })
   }
 
 
-  outletStatus(bedId: string, outletId: Outlets_e) {
-    client.get<OutletStatusData>(outletStatusURL.format(bedId), {
+  getOutletStatus(bedId: string, outletId: Outlets_e) {
+    return client.get<OutletStatusData>(outletStatusURL.format(bedId), {
       params: {
         _k: this.key,
         outletId: outletId
       }
     })
+  }
+
+
+  outletStatus(bedId: string, outletId: Outlets_e) {
+    this.getOutletStatus(bedId, outletId)
     .then(res => {
       const { data } = res;
       this.outletData = data;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
       this.outletData = undefined;
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][outletStatus]', err);
+      else console.error('[snapi][outletStatus]', err);
     })
   }
 
 
-  outlet(bedId: string, outletId: Outlets_e, setting: Outlets_e) {
+  outlet(bedId: string, outletId: Outlets_e, setting: Outlet_Setting_e) {
     client.put<OutletStatusData>(outletStatusURL.format(bedId), {
       params: {
         _k: this.key,
@@ -529,12 +544,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][outlet]', err);
+      else console.error('[snapi][outlet]', err);
     })
   }
 
@@ -552,12 +567,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][motion]', err);
+      else console.error('[snapi][motion]', err);
     })
   }
 
@@ -571,12 +586,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][underbedLightStatus]', err);
+      else console.error('[snapi][underbedLightStatus]', err);
     })
   }
 
@@ -591,33 +606,38 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][underbedLight]', err);
+      else console.error('[snapi][underbedLight]', err);
+    })
+  }
+
+
+  getFootwarmingStatus(bedId: string) {
+    return client.get<FootwarmingStatusData>(footwarmingURL.format(bedId), {
+      params: {
+        _k: this.key,
+      }
     })
   }
 
 
   footwarmingStatus(bedId: string) {
-    client.get<FootwarmingStatusData>(footwarmingURL.format(bedId), {
-      params: {
-        _k: this.key,
-      }
-    })
+    this.getFootwarmingStatus(bedId)
     .then(res => {
       const { data } = res;
       this.footwarmingData = data;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
       this.footwarmingData = undefined;
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][footwarmingStatus]', err);
+      else console.error('[snapi][footwarmingStatus]', err);
     })
   }
 
@@ -635,12 +655,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][footWarming]', err);
+      else console.error('[snapi][footWarming]', err);
     })
   }
 
@@ -659,12 +679,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][adjustment]', err);
+      else console.error('[snapi][adjustment]', err);
     })
   }
 
@@ -683,12 +703,12 @@ class snapi {
     .then(res => {
       const { data } = res;
 
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][sleepData]', err);
+      else console.error('[snapi][sleepData]', err);
     })
   }
 
@@ -707,30 +727,12 @@ class snapi {
     .then(res => {
       const { data } = res;
       
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
+      if (this.log) this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+      else console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
     })
     .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
-    })
-  }
-
-  diagnostics() {
-    client.get('https://svcsleepiq.sleepnumber.com/bam/device/getConfig.jsp', {
-      params: {
-        deviceId: '-9223372019955931774'
-      }
-    })
-    .then(res => {
-      const { data } = res;
-
-      if (this.log) this.log.debug(JSON.stringify(data, null, 2));
-      else console.debug(JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error(err);
-      else console.error(err);
+      if (this.log) this.log.error('[snapi][sleepSliceData]', err);
+      else console.error('[snapi][sleepSliceData]', err);
     })
   }
 
