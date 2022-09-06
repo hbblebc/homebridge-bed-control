@@ -35,8 +35,8 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     this.username = config["email"];
     this.password = config["password"];
     this.updateInterval = (config["updateInterval"] || 0) * 1000; // update values from the API every # seconds
-    this.sendDelay = (config["sendDelay"] || 2) * 1000; // delay updating bed numbers by 2 seconds
-    this.platform = config["Bed Platform"];
+    this.sendDelay = (config["delay"] || 2) * 1000; // delay updating bed numbers by 2 seconds
+    this.platform = config["bedPlatform"];
 
     // if (!this.username || !this.password) {
     //   this.log.warn("Ignoring BedControl setup because username or password was not provided.");
@@ -45,9 +45,8 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     // }
 
     this.snapi = new Snapi(this.username, this.password, this.log);
-
-
-    this.log.debug('Finished initializing platform:', this.config.name);
+      
+    this.log.debug('Finished initializing platform:', PLATFORM_NAME);
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
     // Dynamic Platform plugins should only register new accessories after this event was fired,
@@ -80,14 +79,14 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
   async discoverDevices() {
 
     // Attempt to retrieve main dataset
-    this.snapi.familyStatus();
-    this.snapi.bed();
+    const beds = await this.snapi.familyStatus();
+    const bedsStats = await this.snapi.bed();
 
 
     // Loop through each bed
-    this.snapi.beds.forEach((bed: BedState, bedIdx: number) => {
+    beds.forEach(async (bed: BedState) => {
 
-      const bedStats = this.snapi.bedsStats.find(b => b.bedId === bed.bedId)
+      const bedStats = bedsStats.beds.find(b => b.bedId === bed.bedId);
 
       const bedFeatures: BedFeatures = {
         privacy: true,
@@ -126,52 +125,6 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
         Model: bedStats!.model,
         SerialNumber: bedStats!.bedId,
       }
-      
-      // Check if there is a foundation attached
-      this.snapi.foundationStatus(bed.bedId);
-
-      if (this.snapi.foundationData !== undefined) {
-        bedFeatures.foundation = true,
-
-        // Check if the foundation has head or foot control
-        // TODO: add support for flexfit and flexfit 3 bases
-        // TODO: add support for integrated base
-        bedFeatures.leftSide.headControl = true;
-        bedFeatures.rightSide.headControl = true;
-        bedFeatures.leftSide.footControl = true;
-        bedFeatures.rightSide.footControl = true;
-
-        // Check if the foundation has any outlets (1-2) or lights (3-4)
-        this.snapi.outletStatus(bed.bedId, Outlets_e.LeftPlug);
-        if (this.snapi.outletData !== undefined) {
-          bedFeatures.leftSide.outlet = true;
-        }
-
-        this.snapi.outletStatus(bed.bedId, Outlets_e.RightPlug);
-        if (this.snapi.outletData !== undefined) {
-          bedFeatures.rightSide.outlet = true;
-        }
-
-        this.snapi.outletStatus(bed.bedId, Outlets_e.LeftLight);
-        if (this.snapi.outletData !== undefined) {
-          bedFeatures.leftSide.light = true;
-        }
-
-        this.snapi.outletStatus(bed.bedId, Outlets_e.RightLight);
-        if (this.snapi.outletData !== undefined) {
-          bedFeatures.rightSide.outlet = true;
-        }
-
-        // Control both lights or outlets - covers case of a single light as well
-        bedFeatures.anySide.outlet = bedFeatures.leftSide.outlet || bedFeatures.rightSide.outlet;
-        bedFeatures.anySide.light = bedFeatures.leftSide.light || bedFeatures.rightSide.light;
-
-        this.snapi.footwarmingStatus(bed.bedId);
-        if (this.snapi.footwarmingData !== undefined) {
-          bedFeatures.leftSide.footwarming = true;
-          bedFeatures.rightSide.footwarming = true;
-        }
-      }
 
       // Set up the accessory
       const uuid = this.api.hap.uuid.generate(bed.bedId);
@@ -195,6 +148,71 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
       } else {
         // the bed doesn't exist yet, so we need to create it
         this.log.info('Adding new bed:', bedStats!.name);
+      
+        
+        // Check if there is a foundation attached and update available devices
+        try {
+          await this.snapi.foundationStatus(bed.bedId);
+          this.log.info(`[${bedStats!.name}] Foundation detected`);
+          bedFeatures.foundation = true,
+
+          // Check if the foundation has head or foot control
+          // TODO: add support for flexfit and flexfit 3 bases
+          // TODO: add support for integrated base
+          bedFeatures.leftSide.headControl = true;
+          bedFeatures.rightSide.headControl = true;
+          bedFeatures.leftSide.footControl = true;
+          bedFeatures.rightSide.footControl = true;
+
+          // Check if the foundation has any outlets (1-2) or lights (3-4)
+          try {
+            await this.snapi.outletStatus(bed.bedId, Outlets_e.LeftPlug);
+            this.log.info(`[${bedStats!.name}] Outlet 1 (Left Plug) detected`);
+            bedFeatures.leftSide.outlet = true;
+          } catch(e) {
+            this.log.info(`[${bedStats!.name}] Outlet 1 (Left Plug) not detected`);
+          }
+
+          try {
+            await this.snapi.outletStatus(bed.bedId, Outlets_e.RightPlug);
+            this.log.info(`[${bedStats!.name}] Outlet 2 (Right Plug) detected`);
+            bedFeatures.rightSide.outlet = true;
+          } catch(e) {
+            this.log.info(`[${bedStats!.name}] Outlet 2 (Right Plug) not detected`);
+          }
+
+          try {
+            await this.snapi.outletStatus(bed.bedId, Outlets_e.LeftLight);
+            this.log.info(`[${bedStats!.name}] Outlet 3 (Left Light) detected`);
+            bedFeatures.leftSide.light = true;
+          } catch(e) {
+            this.log.info(`[${bedStats!.name}] Outlet 3 (Left Light) not detected`);
+          }
+
+          try {
+            await this.snapi.outletStatus(bed.bedId, Outlets_e.RightLight);
+            this.log.info(`[${bedStats!.name}] Outlet 4 (Right Light) detected`);
+            bedFeatures.rightSide.light = true;
+          } catch(e) {
+            this.log.info(`[${bedStats!.name}] Outlet 4 (Right Light) not detected`);
+          }
+
+          // Control both lights or outlets - covers case of a single light as well
+          bedFeatures.anySide.outlet = bedFeatures.leftSide.outlet || bedFeatures.rightSide.outlet;
+          bedFeatures.anySide.light = bedFeatures.leftSide.light || bedFeatures.rightSide.light;
+
+          try {
+            await this.snapi.footwarmingStatus(bed.bedId);
+            this.log.info(`[${bedStats!.name}] Footwarming detected`);
+            bedFeatures.leftSide.footwarming = true;
+            bedFeatures.rightSide.footwarming = true;
+          } catch(e) {
+            this.log.info(`[${bedStats!.name}] Footwarming not detected`);
+          }
+        } catch(e) {
+          this.log.info(`[${bedStats!.name}] Foundation not detected`);
+        }
+
 
         // create a new bed accessory
         const bedAccessory = new this.api.platformAccessory(bedStats!.name, uuid);
@@ -218,33 +236,19 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
 
   async poll() {
     if (this.updateInterval > 0) {
-      setInterval(() => {
-        this.snapi.getFamilyStatus().then(res => {
-          const { data } = res;
-          data.beds.forEach(bed => {
-            const bedAccessory = this.accessories.find(a => a.context.bedStats.bedid === bed.bedId);
-            if (bedAccessory) {
-              [BedSide_e.LeftSide, BedSide_e.RightSide].forEach(side => {
-                bedAccessory.services[side].occupancySensor.updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
-                bedAccessory.services[side].numberControl.updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
-              })
-            }
-          })
+      setInterval(async () => {
+        const beds = await this.snapi.familyStatus();
+        beds.forEach(bed => {
+          const bedAccessory = this.accessories.find(a => a.context.bedStats.bedid === bed.bedId);
+          if (bedAccessory) {
+            [BedSide_e.LeftSide, BedSide_e.RightSide].forEach(side => {
+              bedAccessory.services[side].occupancySensor.updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
+              bedAccessory.services[side].numberControl.updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
+            })
+          }
         })
       }, this.updateInterval);
     }
   }
 
-
-  authenticate() {
-    if (this.platform === "sleep number") {
-      this.authenticate_sn();
-    }
-  }
-
-    
-  authenticate_sn () {
-    this.log.debug('SleepIQ re-authenticating...')
-    this.snapi.login(this.username, this.password);
-  }
 }

@@ -1,44 +1,16 @@
 /*
- * The following is my documentation of the available API requests that have 
- * been discovered. I pulled these from 
- *  - https://github.com/technicalpickles/sleepyq, 
- *  - https://github.com/erichelgeson/sleepiq, and 
- *  - https://github.com/natecj/sleepiq-php, 
- * removing the request links that no longer work. 
- * 
- * As of December 2018, I have discovered the additional API requests 
- * needed to control the pressure of the bed
- * 
- * If anybody discovers other features of the API, let me know!
- * 
  * To use, launch node in the same directory as this file, then create an
  * object with
  *| > snapi = require('./snapi.js') 
  *| > api = new snapi('username','password')
  * 
- * List of class methods:
- * - api.login()           : required first
- * - api.genURL()          : allows for passing any url extension in
- * - api.registration()    : 
- * - api.familyStatus()    : where the useful homekit information is
- * - api.sleeper()         : 
- * - api.bed()             : 
- * 
- * The next five require familyStatus() or bed() to be called first to get a bedID
- * - api.bedStatus()       : 
- * - api.bedPauseMode()    : Reads the privacy mode setting of the bed
- * - api.setBedPauseMode() : Sets the privacy mode setting of the bed
- * - api.sleepNumber()     : Used to set the sleep number for a side
- * - api.forceIdle()       : Stops the pump
- * - api.pumpStatus()      : 
- *
- * The last two provide bulk sleep data. Could be fun to import into a spreadsheet
- * - api.sleeperData()     : 
- * - api.sleepSliceData()  : 
+ * Each method includes a network request function and a convenience function
+ * for extracting the relevant data. The network request functions include a
+ * retry wrapper that will handle authenication when necessary.
  */
 
  import { Logger } from 'homebridge';
-import axios from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
 import './string.extensions';
@@ -110,630 +82,650 @@ import {
   SleeperSliceData,
   SleepSliceDataData
 } from './interfaces';
+import { error } from 'console';
 
 const jar = new CookieJar();
 const client = wrapper(axios.create({ jar }));
-
 
 class snapi {
 
   protected userId: string = '';
   protected bedID: string[] = [];
-  protected key: string = '';
-
-  public beds: BedState[] = [];
-  public bedsStats: BedStats[] = [];
-  public foundationData?: FoundationStatusData;
-  public outletData?: OutletStatusData;
-  public pauseMode?: BedPauseModeData;
-  public bedStatusData?: {
-    bedStatusData: BedStatusData,
-    bedId: string
-  }
-  public footwarmingData?: FootwarmingStatusData;
+  private key: string = '';
 
   constructor(
     private readonly username: string,
     private readonly password: string,
     public readonly log?: Logger,
-  ) {
+  ) {}
 
-    this.login(this.username, this.password);
 
+  process_errors(e: Error | AxiosError) {
+    if (axios.isAxiosError(e)) {
+      if (this.log)
+        this.log.error('[snapi][login]', e.response?.status, e.response?.statusText);
+      else
+        console.error('[snapi][login]', e.response?.status, e.response?.statusText);
+    }
+    throw e;
   }
 
 
-  login(
-    username: string = this.username,
-    password: string = this.password,
-  ) {
-    client.put<LoginData>(loginURL, {
-      'login': username,
-      'password': password
-    })
-    .then(res => {
+  async retry<T>(func: () => Promise<T>): Promise<T> {
+    try {
+      return await func();
+    } catch (_e: any) {
+      const e: Error | AxiosError = _e;
+      if (axios.isAxiosError(e)) {
+        if (e.response?.statusText === "Unauthorized") {
+          await this.login();
+          return await func();
+        }
+      }
+      throw e;
+    }
+  }
+
+
+  async login(username: string = this.username, password: string = this.password) {
+    try {
+      const res = await client.put<LoginData>(loginURL, {
+        login: username,
+        password: password
+      })
       const { data } = res;
       this.userId = data.userId;
       this.key = data.key;
 
-      if (this.log) this.log.debug('[snapi][login]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][login]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][login]', err);
-      else console.error('[snapi][login]', err);
+      if (this.log)
+        this.log.debug('[snapi][login]', JSON.stringify(data, null, 2));
+      else
+        console.debug('[snapi][login]', JSON.stringify(data, null, 2));
+
+      return data;
+    } catch (e) { this.process_errors(e as Error | AxiosError) }
+  }
+
+
+  getRegistration() {
+    return this.retry<AxiosResponse<RegistrationData>>(() => {
+      return client.get<RegistrationData>(registrationURL, {
+        params: {
+          _k: this.key
+        }
+      })
     })
   }
 
 
-  registration() {
-    client.get<RegistrationData>(registrationURL, {
-      params: {
-        _k: this.key
-      }
-    })
-    .then(res => {
-      const { data } = res;
+  async registration() {
+    const res = await this.getRegistration();
+    const { data } = res;
 
-      if (this.log) this.log.info('[snapi][registration]', JSON.stringify(data, null, 2));
-      else console.info('[snapi][registration]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][registration]', err);
-      else console.error('[snapi][registration]', err);
-    })
+    if (this.log) this.log.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 
   getFamilyStatus() {
-    return client.get<FamilyStatusData>(familyStatusURL, {
-      params: {
-        _k: this.key
-      }
+    return this.retry<AxiosResponse<FamilyStatusData>>(() => {
+      return client.get<FamilyStatusData>(familyStatusURL, {
+        params: {
+          _k: this.key
+        }
+      })
     })
   }
 
 
-  familyStatus() {
-    this.getFamilyStatus()
-    .then(res => {
-      const { data } = res;
-      this.beds = data.beds;
+  async familyStatus() {
+    const res = await this.getFamilyStatus();
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][familyStatus', err);
-      else console.error('[snapi][familyStatus', err);
+    if (this.log) this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+    return data.beds;
+  }
+
+
+  getSleeper() {
+    return this.retry<AxiosResponse<SleeperData>>(() => {
+      return client.get<SleeperData>(sleeperURL, {
+        params: {
+          _k: this.key
+        }
+      })
     })
   }
 
 
-  sleeper() {
-    client.get<SleeperData>(sleeperURL, {
-      params: {
-        _k: this.key
-      }
-    })
-    .then(res => {
-      const { data } = res;
+  async sleeper() {
+    const res = await this.getSleeper();
+    const { data } = res;
 
-      if (this.log) this.log.info('[snapi][sleeper]', JSON.stringify(data, null, 2));
-      else console.info('[snapi][sleeper]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][sleeper]', err);
-      else console.error('[snapi][sleeper]', err);
+    if (this.log) this.log.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  getBed() {
+    return this.retry<AxiosResponse<BedData>>(() => {
+      return client.get<BedData>(bedURL, {
+        params: {
+          _k: this.key
+        }
+      })
     })
   }
 
 
-  bed() {
-    client.get<BedData>(bedURL, {
-      params: {
-        _k: this.key
-      }
-    })
-    .then(res => {
-      const { data } = res;
+  async bed() {
+    const res = await this.getBed();
+    const { data } = res;
 
-      if (this.log) this.log.info('[snapi][bed]', JSON.stringify(data, null, 2));
-      else console.info('[snapi][bed]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][bed]', err);
-      else console.error('[snapi][bed]', err);
-    })
+    if (this.log) this.log.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 
   getBedStatus(bedId: string) {
-    return client.get<BedStatusData>(bedStatusURL.format(bedId), {
-      params: {
-        _k: this.key
-      }
+    return this.retry<AxiosResponse<BedStatusData>>(() => {
+      return client.get<BedStatusData>(bedStatusURL.format(bedId), {
+        params: {
+          _k: this.key
+        }
+      })
     })
   }
 
 
-  bedStatus(bedId: string) {
-    this.getBedStatus(bedId)
-    .then(res => {
-      const { data } = res;
-      this.bedStatusData = {
-        bedStatusData: data,
-        bedId: bedId
-      }
+  async bedStatus(bedId: string) {
+    const res = await this.getBedStatus(bedId);
+    const { data } = res;
 
-      if (this.log) this.log.info('[snapi][bedStatus]', JSON.stringify(data, null, 2));
-      else console.info('[snapi][bedStatus]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      this.bedStatusData = undefined;
-      if (this.log) this.log.error('[snapi][bedStatus]', err);
-      else console.error('[snapi][bedStatus]', err);
-    })
+    if (this.log) this.log.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 
   getBedPauseMode(bedId: string) {
-    return client.get<BedPauseModeData>(bedPauseModeURL.format(bedId), {
-      params: {
-        _k: this.key
-      }
+    return this.retry<AxiosResponse<BedPauseModeData>>(() => {
+      return client.get<BedPauseModeData>(bedPauseModeURL.format(bedId), {
+        params: {
+          _k: this.key
+        }
+      })
     })
   }
 
 
-  bedPauseMode(bedId: string) {
-    this.getBedPauseMode(bedId)
-    .then(res => {
-      const { data } = res;
-      this.pauseMode = data;
+  async bedPauseMode(bedId: string) {
+    const res = await this.getBedPauseMode(bedId);
+    const { data } = res;
+    const pauseMode = data.pauseMode;
 
-      if (this.log) this.log.info('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
-      else console.info('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      this.pauseMode = undefined;
-      if (this.log) this.log.error('[snapi][bedPauseMode]', err);
-      else console.error('[snapi][bedPauseMode]', err);
+    if (this.log) this.log.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+    return pauseMode;
+  }
+
+
+  putBedPauseMode(bedId: string, mode: PauseMode_e) {
+    return this.retry<AxiosResponse<BedPauseModeData>>(() => {
+      return client.put<BedPauseModeData>(bedPauseModeURL.format(bedId), null, {
+        params: {
+          _k: this.key,
+          mode: mode
+        }
+      })
     })
   }
 
 
-  setBedPauseMode(bedId: string, mode: PauseMode_e) {
-    client.put<BedPauseModeData>(bedPauseModeURL.format(bedId), {
-      params: {
-        _k: this.key,
-        mode: mode
-      }
-    })
-    .then(res => {
-      const { data } = res;
+  async setBedPauseMode(bedId: string, mode: PauseMode_e) {
+    const res = await this.putBedPauseMode(bedId, mode);
+    const { data } = res;
 
-      if (this.log) this.log.info('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
-      else console.info('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][setBedPauseMode]', err);
-      else console.error('[snapi][setBedPauseMode]', err);
+    if (this.log) this.log.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putSleepNumber(bedId: string, side: BedSide_e, num: number) {
+    return this.retry<AxiosResponse<SleepNumberData>>(() => {
+      return client.put<SleepNumberData>(sleepNumberURL.format(bedId), {
+        side: side,
+        sleepNumber: num
+      }, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  sleepNumber(bedId: string, side: BedSide_e, num: number) {
+  async sleepNumber(bedId: string, side: BedSide_e, num: number) {
     num = Math.round(num);
     if (num < 0) num = 0;
     if (num > 100) num = 100;
 
-    client.put<SleepNumberData>(sleepNumberURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-      side: side,
-      sleepNumber: num
-    })
-    .then(res => {
-      const { data } = res;
+    const res = await this.putSleepNumber(bedId, side, num);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][sleepNumber]', err);
-      else console.error('[snapi][sleepNumber]', err);
-    })
+    if (this.log) this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 
   getResponsiveAirStatus(bedId: string) {
-    return client.get<ResponsiveAirStatusData>(responsiveAirURL.format(bedId), {
-      params: {
-        _k: this.key,
-      }
-    })
-  }
-
-  responsiveAirStatus(bedId: string) {
-    this.getResponsiveAirStatus(bedId)
-    .then(res => {
-      const { data } = res;
-
-      if (this.log) this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][responsiveAirStatus]', err);
-      else console.error('[snapi][responsiveAirStatus]', err);
+    return this.retry<AxiosResponse<ResponsiveAirStatusData>>(() => {
+      return client.get<ResponsiveAirStatusData>(responsiveAirURL.format(bedId), {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  responsiveAir(bedId: string, left?: boolean, right?: boolean) {
-    client.put<ResponsiveAirData>(responsiveAirURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-      leftSideEnabled: left,
-      rightSideEnabled: right
-    })
-    .then(res => {
-      const { data } = res;
+  async responsiveAirStatus(bedId: string) {
+    const res = await this.getResponsiveAirStatus(bedId);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+    if (this.log) this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putResponsiveAir(bedId: string, left?: boolean, right?: boolean) {
+    return this.retry<AxiosResponse<ResponsiveAirData>>(() => {
+      return client.put<ResponsiveAirData>(responsiveAirURL.format(bedId), {
+        leftSideEnabled: left,
+        rightSideEnabled: right
+      }, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][responsiveAir]', err);
-      else console.error('[snapi][responsiveAir]', err);
+  }
+
+
+  async responsiveAir(bedId: string, left?: boolean, right?: boolean) {
+    const res = await this.putResponsiveAir(bedId, left, right);
+    const { data } = res;
+
+    if (this.log) this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putForceIdle(bedId: string) {
+    return this.retry<AxiosResponse<ForceIdleData>>(() => {
+      return client.put<ForceIdleData>(forceIdleURL.format(bedId), null, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
   // Forces the pump to stop if it is in the middle of an action
-  forceIdle(bedId: string) {
-    client.put<ForceIdleData>(forceIdleURL.format(bedId), {
-      params: {
-        _k: this.key,
-      }
-    })
-    .then(res => {
-      const { data } = res;
+  async forceIdle(bedId: string) {
+    const res = await this.putForceIdle(bedId);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][forceIdle]', err);
-      else console.error('[snapi][forceIdle]', err);
+    if (this.log) this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  getPumpStatus(bedId: string) {
+    return this.retry<AxiosResponse<PumpStatusData>>(() => {
+      return client.get<PumpStatusData>(pumpStatusURL.format(bedId), {
+        params: {
+          _k: this.key,
+        }
+      })
+    })  
+  }
+
+
+  async pumpStatus(bedId: string) {
+    const res = await this.getPumpStatus(bedId);
+    const { data } = res;
+
+    if (this.log) this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putPreset(bedId: string, side: BedSide_e, preset: Preset_e) {
+    return this.retry<AxiosResponse<PresetData>>(() => {
+      return client.put<PresetData>(presetURL.format(bedId), {
+        speed: 0, // TODO: check this value
+        side: side,
+        preset: preset
+      }, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  pumpStatus(bedId: string) {
-    client.get<PumpStatusData>(pumpStatusURL.format(bedId), {
-      params: {
-        _k: this.key,
-      }
-    })
-    .then(res => {
-      const { data } = res;
+  async preset(bedId: string, side: BedSide_e, preset: Preset_e) {
+    const res = await this.putPreset(bedId, side, preset);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][pumpStatus]', err);
-      else console.error('[snapi][pumpStatus]', err);
+    if (this.log) this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putAdjust(bedId: string, side: BedSide_e, position: number, actuator: Actuator_e) {
+    return this.retry<AxiosResponse<AdjustData>>(() => {
+      return client.put<AdjustData>(adjustURL.format(bedId), {
+        speed: 0, // TODO: check this value
+        side: side,
+        position: position,
+        actuator: actuator
+      }, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  preset(bedId: string, side: BedSide_e, preset: Preset_e) {
-    client.put<PresetData>(presetURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-      speed: 0, // TODO: check this value
-      side: side,
-      preset: preset
-    })
-    .then(res => {
-      const { data } = res;
-
-      if (this.log) this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][preset]', err);
-      else console.error('[snapi][preset]', err);
-    })
-  }
-
-
-  adjust(bedId: string, side: BedSide_e, position: number, actuator: Actuator_e) {
+  async adjust(bedId: string, side: BedSide_e, position: number, actuator: Actuator_e) {
     position = Math.round(position);
     if (position < 0) position = 0;
     if (position > 100) position = 100;
 
-    client.put<AdjustData>(adjustURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-      speed: 0, // TODO: check this value
-      side: side,
-      position: position,
-      actuator: actuator
-    })
-    .then(res => {
-      const { data } = res;
+    const res = await this.putAdjust(bedId, side, position, actuator);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][adjust]', err);
-      else console.error('[snapi][adjust]', err);
-    })
+    if (this.log) this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 
   getFoundationStatus(bedId: string) {
-    return client.get<FoundationStatusData>(foundationStatusURL.format(bedId), {
-      params: {
-        _k: this.key,
-      }
+    return this.retry<AxiosResponse<FoundationStatusData>>(() => {
+      return client.get<FoundationStatusData>(foundationStatusURL.format(bedId), {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  foundationStatus(bedId: string) {
-    this.getFoundationStatus(bedId)
-    .then(res => {
-      const { data } = res;
-      this.foundationData = data;
+  async foundationStatus(bedId: string) {
+    const res = await this.getFoundationStatus(bedId);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      this.foundationData = undefined;
-      if (this.log) this.log.error('[snapi][foundationStatus]', err);
-      else console.error('[snapi][foundationStatus]', err);
-    })
+    if (this.log) this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 
   getOutletStatus(bedId: string, outletId: Outlets_e) {
-    return client.get<OutletStatusData>(outletStatusURL.format(bedId), {
-      params: {
-        _k: this.key,
-        outletId: outletId
-      }
+    return this.retry<AxiosResponse<OutletStatusData>>(() => {
+      return client.get<OutletStatusData>(outletStatusURL.format(bedId), {
+        params: {
+          _k: this.key,
+          outletId: outletId
+        }
+      })
     })
   }
 
 
-  outletStatus(bedId: string, outletId: Outlets_e) {
-    this.getOutletStatus(bedId, outletId)
-    .then(res => {
-      const { data } = res;
-      this.outletData = data;
+  async outletStatus(bedId: string, outletId: Outlets_e) {
+    const res = await this.getOutletStatus(bedId, outletId);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      this.outletData = undefined;
-      if (this.log) this.log.error('[snapi][outletStatus]', err);
-      else console.error('[snapi][outletStatus]', err);
+    if (this.log) this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putOutlet(bedId: string, outletId: Outlets_e, setting: Outlet_Setting_e) {
+    return this.retry<AxiosResponse<OutletStatusData>>(() => {
+      return client.put<OutletStatusData>(outletStatusURL.format(bedId), null, {
+        params: {
+          _k: this.key,
+          outletId: outletId,
+          setting: setting
+        }
+      })
+    })  
+  }
+
+
+  async outlet(bedId: string, outletId: Outlets_e, setting: Outlet_Setting_e) {
+    const res = await this.putOutlet(bedId, outletId, setting);
+    const { data } = res;
+
+    if (this.log) this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putMotion(bedId: string, side: BedSide_e, head: Motion_e, massage: Motion_e, foot: Motion_e) {
+    return this.retry<AxiosResponse<MotionData>>(() => {
+      return client.put<MotionData>(motionURL.format(bedId), {
+        side: side,
+        headMotion: head,
+        massageMotion: massage,
+        footMotion: foot
+      }, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  outlet(bedId: string, outletId: Outlets_e, setting: Outlet_Setting_e) {
-    client.put<OutletStatusData>(outletStatusURL.format(bedId), {
-      params: {
-        _k: this.key,
-        outletId: outletId,
-        setting: setting
-      }
-    })
-    .then(res => {
-      const { data } = res;
+  async motion(bedId: string, side: BedSide_e, head: Motion_e, massage: Motion_e, foot: Motion_e) {
+    const res = await this.putMotion(bedId, side, head, massage, foot);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][outlet]', err);
-      else console.error('[snapi][outlet]', err);
+    if (this.log) this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  getUnderbedLightStatus(bedId: string) {
+    return this.retry<AxiosResponse<UnderbedLightStatusData>>(() => {
+      return client.get<UnderbedLightStatusData>(underbedLightURL.format(bedId), {
+        params: {
+          _k: this.key,
+        },
+      })
     })
   }
 
 
-  motion(bedId: string, side: BedSide_e, head: Motion_e, massage: Motion_e, foot: Motion_e) {
-    client.put<MotionData>(motionURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-      side: side,
-      headMotion: head,
-      massageMotion: massage,
-      footMotion: foot
-    })
-    .then(res => {
-      const { data } = res;
+  async underbedLightStatus(bedId: string) {
+    const res = await this.getUnderbedLightStatus(bedId);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][motion]', err);
-      else console.error('[snapi][motion]', err);
+    if (this.log) this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putUnderbedLight(bedId: string, enableAuto: boolean) {
+    return this.retry<AxiosResponse<UnderbedLightData>>(() => {
+      return client.put<UnderbedLightData>(underbedLightURL.format(bedId), {
+        enableAuto: enableAuto
+      }, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  underbedLightStatus(bedId: string) {
-    client.get<UnderbedLightStatusData>(underbedLightURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-    })
-    .then(res => {
-      const { data } = res;
+  async underbedLight(bedId: string, enableAuto: boolean) {
+    const res = await this.putUnderbedLight(bedId, enableAuto);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][underbedLightStatus]', err);
-      else console.error('[snapi][underbedLightStatus]', err);
-    })
-  }
-
-
-  underbedLight(bedId: string, enableAuto: boolean) {
-    client.put<UnderbedLightData>(underbedLightURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-      enableAuto: enableAuto
-    })
-    .then(res => {
-      const { data } = res;
-
-      if (this.log) this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][underbedLight]', err);
-      else console.error('[snapi][underbedLight]', err);
-    })
+    if (this.log) this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 
   getFootwarmingStatus(bedId: string) {
-    return client.get<FootwarmingStatusData>(footwarmingURL.format(bedId), {
-      params: {
-        _k: this.key,
-      }
+    return this.retry<AxiosResponse<FootwarmingStatusData>>(() => {
+      return client.get<FootwarmingStatusData>(footwarmingURL.format(bedId), {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  footwarmingStatus(bedId: string) {
-    this.getFootwarmingStatus(bedId)
-    .then(res => {
-      const { data } = res;
-      this.footwarmingData = data;
+  async footwarmingStatus(bedId: string) {
+    const res = await this.getFootwarmingStatus(bedId);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      this.footwarmingData = undefined;
-      if (this.log) this.log.error('[snapi][footwarmingStatus]', err);
-      else console.error('[snapi][footwarmingStatus]', err);
+    if (this.log) this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putFootwarming(bedId: string, left?: number, right?: number, timerLeft?: number, timerRight?: number) {
+    return this.retry<AxiosResponse<FootwarmingData>>(() => {
+      return client.put<FootwarmingData>(footwarmingURL.format(bedId), {
+        footWarmingTempLeft: left,
+        footWarmingTempRight: right,
+        footWarmingTimerLeft: timerLeft,
+        footWarmingTimerRight: timerRight
+      }, {
+        params: {
+          _k: this.key
+        }
+      })
     })
   }
 
 
-  footWarming(bedId: string, left?: number, right?: number, timerLeft?: number, timerRight?: number) {
-    client.put<FootwarmingData>(footwarmingURL.format(bedId), {
-      params: {
-        _k: this.key
-      },
-      footWarmingStatusLeft: left,
-      footWarmingStatusRight: right,
-      footWarmingTimerLeft: timerLeft,
-      footWarmingTimerRight: timerRight
-    })
-    .then(res => {
-      const { data } = res;
+  async footwarming(bedId: string, left?: number, right?: number, timerLeft?: number, timerRight?: number) {
+    const res = await this.putFootwarming(bedId, left, right, timerLeft, timerRight);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][footWarming]', err);
-      else console.error('[snapi][footWarming]', err);
+    if (this.log) this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  putAdjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer: number = 15) {
+    return this.retry<AxiosResponse<AdjustmentData>>(() => {
+      return client.put<AdjustmentData>(adjustmentURL.format(bedId), {
+        side: side,
+        headMassageMotor: head,
+        massageWaveMode: waveMode,
+        footMassageMotor: foot,
+        massageTimer: timer
+      }, {
+        params: {
+          _k: this.key,
+        }
+      })
     })
   }
 
 
-  adjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer: number = 15) {
-    client.put<AdjustmentData>(adjustmentURL.format(bedId), {
-      params: {
-        _k: this.key,
-      },
-      side: side,
-      headMassageMotor: head,
-      massageWaveMode: waveMode,
-      footMassageMotor: foot,
-      massageTimer: timer
-    })
-    .then(res => {
-      const { data } = res;
+  async adjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer: number = 15) {
+    const res = await this.putAdjustment(bedId, side, head, waveMode, foot, timer);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][adjustment]', err);
-      else console.error('[snapi][adjustment]', err);
+    if (this.log) this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  getSleepData(data_date: string, interval: string, sleeper: string = this.userId) {
+    return this.retry<AxiosResponse<SleepDataData>>(() => {
+      return client.get<SleepDataData>(sleepDataURL, {
+        params: {
+          _k: this.key,
+          date: data_date,
+          interval: interval,
+          sleeper: sleeper
+        }
+      })
     })
   }
 
 
-  sleepData(data_date: string, interval: string, sleeper: string = this.userId) {
+  async sleepData(data_date: string, interval: string, sleeper: string = this.userId) {
     // data_date format: 'YYYY-MM-DD'
     // interval format: 'D1' (1 day), 'M1' (1 month), etc.
-    client.get<SleepDataData>(sleepDataURL, {
-      params: {
-        _k: this.key,
-        date: data_date,
-        interval: interval,
-        sleeper: sleeper
-      }
-    })
-    .then(res => {
-      const { data } = res;
+    const res = await this.getSleepData(data_date, interval, sleeper);
+    const { data } = res;
 
-      if (this.log) this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][sleepData]', err);
-      else console.error('[snapi][sleepData]', err);
+    if (this.log) this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+    return data;
+  }
+
+
+  getSleepSliceData(data_date: string, sleeper: string = this.userId, format?: string) {
+    return this.retry<AxiosResponse<SleepSliceDataData>>(() => {
+      return client.get<SleepSliceDataData>(sleepSliceDataURL, {
+        params: {
+          _k: this.key,
+          date: data_date,
+          sleeper: sleeper,
+          format: format
+        }
+      })
     })
   }
 
 
-  sleepSliceData(data_date: string, sleeper: string = this.userId, format?: string) {
+  async sleepSliceData(data_date: string, sleeper: string = this.userId, format?: string) {
     // data_date format: 'YYYY-MM-DD'
     // can optionally add a format:'csv' argument to get back a csv version of the data
-    client.get<SleepSliceDataData>(sleepSliceDataURL, {
-      params: {
-        _k: this.key,
-        date: data_date,
-        sleeper: sleeper,
-        format: format
-      }
-    })
-    .then(res => {
-      const { data } = res;
-      
-      if (this.log) this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
-      else console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
-    })
-    .catch(err => {
-      if (this.log) this.log.error('[snapi][sleepSliceData]', err);
-      else console.error('[snapi][sleepSliceData]', err);
-    })
+    const res = await this.getSleepSliceData(data_date, sleeper, format);
+    const { data } = res;
+    
+    if (this.log) this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+    else console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+    return data;
   }
 
 }
