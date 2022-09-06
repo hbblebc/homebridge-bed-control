@@ -1,15 +1,16 @@
+/* eslint-disable no-console */
 /*
  * To use, launch node in the same directory as this file, then create an
  * object with
- *| > snapi = require('./snapi.js') 
+ *| > snapi = require('./snapi.js')
  *| > api = new snapi('username','password')
- * 
+ *
  * Each method includes a network request function and a convenience function
  * for extracting the relevant data. The network request functions include a
  * retry wrapper that will handle authenication when necessary.
  */
 
- import { Logger } from 'homebridge';
+import { Logger } from 'homebridge';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
@@ -35,19 +36,14 @@ import {
   footwarmingURL,
   adjustmentURL,
   sleepDataURL,
-  sleepSliceDataURL
+  sleepSliceDataURL,
 } from './constants';
 import {
   LoginData,
   RegistrationData,
-  BedSideState,
-  BedState,
   FamilyStatusData,
-  Sleeper,
   SleeperData,
-  BedStats,
   BedData,
-  BedSideStatus,
   BedStatusData,
   PauseMode_e,
   BedPauseModeData,
@@ -57,7 +53,6 @@ import {
   ResponsiveAirData,
   UnderbedLightStatusData,
   UnderbedLightData,
-  Footwarming_e,
   FootwarmingStatusData,
   FootwarmingData,
   ForceIdleData,
@@ -74,24 +69,18 @@ import {
   MotionData,
   Adjustment_e,
   AdjustmentData,
-  Sessions,
-  SleepData,
   SleepDataData,
-  SliceList,
-  DaySliceData,
-  SleeperSliceData,
-  SleepSliceDataData
+  SleepSliceDataData,
 } from './interfaces';
-import { error } from 'console';
 
 const jar = new CookieJar();
 const client = wrapper(axios.create({ jar }));
 
 class snapi {
 
-  protected userId: string = '';
+  protected userId = '';
   protected bedID: string[] = [];
-  private key: string = '';
+  private key = '';
 
   constructor(
     private readonly username: string,
@@ -102,10 +91,11 @@ class snapi {
 
   process_errors(e: Error | AxiosError) {
     if (axios.isAxiosError(e)) {
-      if (this.log)
+      if (this.log) {
         this.log.error('[snapi][login]', e.response?.status, e.response?.statusText);
-      else
+      } else {
         console.error('[snapi][login]', e.response?.status, e.response?.statusText);
+      }
     }
     throw e;
   }
@@ -114,10 +104,10 @@ class snapi {
   async retry<T>(func: () => Promise<T>): Promise<T> {
     try {
       return await func();
-    } catch (_e: any) {
-      const e: Error | AxiosError = _e;
+    } catch (_e) {
+      const e: Error = _e as Error;
       if (axios.isAxiosError(e)) {
-        if (e.response?.statusText === "Unauthorized") {
+        if (e.response?.statusText === 'Unauthorized') {
           await this.login();
           return await func();
         }
@@ -131,19 +121,22 @@ class snapi {
     try {
       const res = await client.put<LoginData>(loginURL, {
         login: username,
-        password: password
-      })
+        password: password,
+      });
       const { data } = res;
       this.userId = data.userId;
       this.key = data.key;
 
-      if (this.log)
+      if (this.log) {
         this.log.debug('[snapi][login]', JSON.stringify(data, null, 2));
-      else
+      } else {
         console.debug('[snapi][login]', JSON.stringify(data, null, 2));
+      }
 
       return data;
-    } catch (e) { this.process_errors(e as Error | AxiosError) }
+    } catch (e) {
+      this.process_errors(e as Error | AxiosError);
+    }
   }
 
 
@@ -151,10 +144,10 @@ class snapi {
     return this.retry<AxiosResponse<RegistrationData>>(() => {
       return client.get<RegistrationData>(registrationURL, {
         params: {
-          _k: this.key
-        }
-      })
-    })
+          _k: this.key,
+        },
+      });
+    });
   }
 
 
@@ -162,8 +155,11 @@ class snapi {
     const res = await this.getRegistration();
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][registration]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -172,10 +168,10 @@ class snapi {
     return this.retry<AxiosResponse<FamilyStatusData>>(() => {
       return client.get<FamilyStatusData>(familyStatusURL, {
         params: {
-          _k: this.key
-        }
-      })
-    })
+          _k: this.key,
+        },
+      });
+    });
   }
 
 
@@ -183,8 +179,11 @@ class snapi {
     const res = await this.getFamilyStatus();
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+    }
     return data.beds;
   }
 
@@ -193,10 +192,10 @@ class snapi {
     return this.retry<AxiosResponse<SleeperData>>(() => {
       return client.get<SleeperData>(sleeperURL, {
         params: {
-          _k: this.key
-        }
-      })
-    })
+          _k: this.key,
+        },
+      });
+    });
   }
 
 
@@ -204,8 +203,11 @@ class snapi {
     const res = await this.getSleeper();
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -214,10 +216,10 @@ class snapi {
     return this.retry<AxiosResponse<BedData>>(() => {
       return client.get<BedData>(bedURL, {
         params: {
-          _k: this.key
-        }
-      })
-    })
+          _k: this.key,
+        },
+      });
+    });
   }
 
 
@@ -225,8 +227,11 @@ class snapi {
     const res = await this.getBed();
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][bed]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -235,10 +240,10 @@ class snapi {
     return this.retry<AxiosResponse<BedStatusData>>(() => {
       return client.get<BedStatusData>(bedStatusURL.format(bedId), {
         params: {
-          _k: this.key
-        }
-      })
-    })
+          _k: this.key,
+        },
+      });
+    });
   }
 
 
@@ -246,8 +251,11 @@ class snapi {
     const res = await this.getBedStatus(bedId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -256,10 +264,10 @@ class snapi {
     return this.retry<AxiosResponse<BedPauseModeData>>(() => {
       return client.get<BedPauseModeData>(bedPauseModeURL.format(bedId), {
         params: {
-          _k: this.key
-        }
-      })
-    })
+          _k: this.key,
+        },
+      });
+    });
   }
 
 
@@ -268,8 +276,11 @@ class snapi {
     const { data } = res;
     const pauseMode = data.pauseMode;
 
-    if (this.log) this.log.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+    }
     return pauseMode;
   }
 
@@ -279,10 +290,10 @@ class snapi {
       return client.put<BedPauseModeData>(bedPauseModeURL.format(bedId), null, {
         params: {
           _k: this.key,
-          mode: mode
-        }
-      })
-    })
+          mode: mode,
+        },
+      });
+    });
   }
 
 
@@ -290,8 +301,11 @@ class snapi {
     const res = await this.putBedPauseMode(bedId, mode);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -300,26 +314,33 @@ class snapi {
     return this.retry<AxiosResponse<SleepNumberData>>(() => {
       return client.put<SleepNumberData>(sleepNumberURL.format(bedId), {
         side: side,
-        sleepNumber: num
+        sleepNumber: num,
       }, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
   async sleepNumber(bedId: string, side: BedSide_e, num: number) {
     num = Math.round(num);
-    if (num < 0) num = 0;
-    if (num > 100) num = 100;
+    if (num < 0) {
+      num = 0;
+    }
+    if (num > 100) {
+      num = 100;
+    }
 
     const res = await this.putSleepNumber(bedId, side, num);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -329,9 +350,9 @@ class snapi {
       return client.get<ResponsiveAirStatusData>(responsiveAirURL.format(bedId), {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -339,8 +360,11 @@ class snapi {
     const res = await this.getResponsiveAirStatus(bedId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -349,13 +373,13 @@ class snapi {
     return this.retry<AxiosResponse<ResponsiveAirData>>(() => {
       return client.put<ResponsiveAirData>(responsiveAirURL.format(bedId), {
         leftSideEnabled: left,
-        rightSideEnabled: right
+        rightSideEnabled: right,
       }, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -363,8 +387,11 @@ class snapi {
     const res = await this.putResponsiveAir(bedId, left, right);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -374,9 +401,9 @@ class snapi {
       return client.put<ForceIdleData>(forceIdleURL.format(bedId), null, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -385,8 +412,11 @@ class snapi {
     const res = await this.putForceIdle(bedId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -396,9 +426,9 @@ class snapi {
       return client.get<PumpStatusData>(pumpStatusURL.format(bedId), {
         params: {
           _k: this.key,
-        }
-      })
-    })  
+        },
+      });
+    });
   }
 
 
@@ -406,8 +436,11 @@ class snapi {
     const res = await this.getPumpStatus(bedId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -417,13 +450,13 @@ class snapi {
       return client.put<PresetData>(presetURL.format(bedId), {
         speed: 0, // TODO: check this value
         side: side,
-        preset: preset
+        preset: preset,
       }, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -431,8 +464,11 @@ class snapi {
     const res = await this.putPreset(bedId, side, preset);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -443,26 +479,33 @@ class snapi {
         speed: 0, // TODO: check this value
         side: side,
         position: position,
-        actuator: actuator
+        actuator: actuator,
       }, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
   async adjust(bedId: string, side: BedSide_e, position: number, actuator: Actuator_e) {
     position = Math.round(position);
-    if (position < 0) position = 0;
-    if (position > 100) position = 100;
+    if (position < 0) {
+      position = 0;
+    }
+    if (position > 100) {
+      position = 100;
+    }
 
     const res = await this.putAdjust(bedId, side, position, actuator);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -472,9 +515,9 @@ class snapi {
       return client.get<FoundationStatusData>(foundationStatusURL.format(bedId), {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -482,8 +525,11 @@ class snapi {
     const res = await this.getFoundationStatus(bedId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -493,10 +539,10 @@ class snapi {
       return client.get<OutletStatusData>(outletStatusURL.format(bedId), {
         params: {
           _k: this.key,
-          outletId: outletId
-        }
-      })
-    })
+          outletId: outletId,
+        },
+      });
+    });
   }
 
 
@@ -504,8 +550,11 @@ class snapi {
     const res = await this.getOutletStatus(bedId, outletId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -516,10 +565,10 @@ class snapi {
         params: {
           _k: this.key,
           outletId: outletId,
-          setting: setting
-        }
-      })
-    })  
+          setting: setting,
+        },
+      });
+    });
   }
 
 
@@ -527,8 +576,11 @@ class snapi {
     const res = await this.putOutlet(bedId, outletId, setting);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -539,13 +591,13 @@ class snapi {
         side: side,
         headMotion: head,
         massageMotion: massage,
-        footMotion: foot
+        footMotion: foot,
       }, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -553,8 +605,11 @@ class snapi {
     const res = await this.putMotion(bedId, side, head, massage, foot);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -565,8 +620,8 @@ class snapi {
         params: {
           _k: this.key,
         },
-      })
-    })
+      });
+    });
   }
 
 
@@ -574,8 +629,11 @@ class snapi {
     const res = await this.getUnderbedLightStatus(bedId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -583,13 +641,13 @@ class snapi {
   putUnderbedLight(bedId: string, enableAuto: boolean) {
     return this.retry<AxiosResponse<UnderbedLightData>>(() => {
       return client.put<UnderbedLightData>(underbedLightURL.format(bedId), {
-        enableAuto: enableAuto
+        enableAuto: enableAuto,
       }, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -597,8 +655,11 @@ class snapi {
     const res = await this.putUnderbedLight(bedId, enableAuto);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -608,9 +669,9 @@ class snapi {
       return client.get<FootwarmingStatusData>(footwarmingURL.format(bedId), {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
@@ -618,8 +679,11 @@ class snapi {
     const res = await this.getFootwarmingStatus(bedId);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -630,13 +694,13 @@ class snapi {
         footWarmingTempLeft: left,
         footWarmingTempRight: right,
         footWarmingTimerLeft: timerLeft,
-        footWarmingTimerRight: timerRight
+        footWarmingTimerRight: timerRight,
       }, {
         params: {
-          _k: this.key
-        }
-      })
-    })
+          _k: this.key,
+        },
+      });
+    });
   }
 
 
@@ -644,35 +708,41 @@ class snapi {
     const res = await this.putFootwarming(bedId, left, right, timerLeft, timerRight);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
 
-  putAdjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer: number = 15) {
+  putAdjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer = 15) {
     return this.retry<AxiosResponse<AdjustmentData>>(() => {
       return client.put<AdjustmentData>(adjustmentURL.format(bedId), {
         side: side,
         headMassageMotor: head,
         massageWaveMode: waveMode,
         footMassageMotor: foot,
-        massageTimer: timer
+        massageTimer: timer,
       }, {
         params: {
           _k: this.key,
-        }
-      })
-    })
+        },
+      });
+    });
   }
 
 
-  async adjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer: number = 15) {
+  async adjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer = 15) {
     const res = await this.putAdjustment(bedId, side, head, waveMode, foot, timer);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -684,10 +754,10 @@ class snapi {
           _k: this.key,
           date: data_date,
           interval: interval,
-          sleeper: sleeper
-        }
-      })
-    })
+          sleeper: sleeper,
+        },
+      });
+    });
   }
 
 
@@ -697,8 +767,11 @@ class snapi {
     const res = await this.getSleepData(data_date, interval, sleeper);
     const { data } = res;
 
-    if (this.log) this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+    if (this.log) {
+      this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 
@@ -710,10 +783,10 @@ class snapi {
           _k: this.key,
           date: data_date,
           sleeper: sleeper,
-          format: format
-        }
-      })
-    })
+          format: format,
+        },
+      });
+    });
   }
 
 
@@ -722,9 +795,12 @@ class snapi {
     // can optionally add a format:'csv' argument to get back a csv version of the data
     const res = await this.getSleepSliceData(data_date, sleeper, format);
     const { data } = res;
-    
-    if (this.log) this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
-    else console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+
+    if (this.log) {
+      this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+    } else {
+      console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+    }
     return data;
   }
 

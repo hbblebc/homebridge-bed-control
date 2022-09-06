@@ -1,9 +1,20 @@
-import { AxiosResponse } from 'axios';
-import { Brightness, OccupancySensor, On, Switch, TargetHeaterCoolerState } from 'hap-nodejs/dist/lib/definitions';
+import { TargetHeaterCoolerState } from 'hap-nodejs/dist/lib/definitions';
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { BedControlPlatform } from './platform';
-import { Actuator_e, BedSide_e, BedStatusData, FamilyStatusData, FootwarmingStatusData, Footwarming_e, FoundationStatusData, Outlets_e, Outlet_Setting_e, PauseMode_e, ResponsiveAirStatusData, Services } from './snapi/interfaces';
+import {
+  Actuator_e,
+  BedSide_e,
+  BedStatusData,
+  FootwarmingStatusData,
+  Footwarming_e,
+  FoundationStatusData,
+  Outlets_e,
+  Outlet_Setting_e,
+  PauseMode_e,
+  ResponsiveAirStatusData,
+  Services,
+} from './snapi/interfaces';
 import Snapi from './snapi/snapi';
 
 
@@ -11,19 +22,19 @@ export class BedAccessory {
 
   protected bedId: string;
   protected bedName: string;
-  private _bed?: Promise<any> = undefined;
-  private _responsiveAir?: Promise<any> = undefined;
-  private _foundation?: Promise<any> = undefined;
-  private _footwarming?: Promise<any> = undefined;
-  private setSleepNumber: (...args: any[]) => void;
-  private adjustActuator: (...args: any[]) => void;
+  private _bed?: Promise<BedStatusData> = undefined;
+  private _responsiveAir?: Promise<ResponsiveAirStatusData> = undefined;
+  private _foundation?: Promise<FoundationStatusData> = undefined;
+  private _footwarming?: Promise<FootwarmingStatusData> = undefined;
+  private setSleepNumber: (...args: [string, BedSide_e, number]) => void;
+  private adjustActuator: (...args: [string, BedSide_e, number, Actuator_e]) => void;
 
   public services: Services = {};
 
   constructor(
     private readonly platform: BedControlPlatform,
     private readonly accessory: PlatformAccessory,
-    private readonly snapi: Snapi
+    private readonly snapi: Snapi,
   ) {
     this.bedId = accessory.context.bedStats.bedId;
     this.bedName = accessory.context.bedStats.name;
@@ -31,9 +42,9 @@ export class BedAccessory {
     this.adjustActuator = this.debounce(this.snapi.adjust, this.accessory.context.sendDelay);
 
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-    .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.bedFeatures.Manufacturer)
-    .setCharacteristic(this.platform.Characteristic.Model, this.accessory.context.bedFeatures.Model)
-    .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.bedFeatures.SerialNumber);
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.bedFeatures.Manufacturer)
+      .setCharacteristic(this.platform.Characteristic.Model, this.accessory.context.bedFeatures.Model)
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.bedFeatures.SerialNumber);
 
     // Set up privacy switch
     this.services.privacySwitch = this.accessory.getService('Privacy Switch') ||
@@ -50,21 +61,21 @@ export class BedAccessory {
 
       // Set up occupancy sensor
       this.services[side].occupancySensor = this.accessory.getService(`${side} Occupancy Sensor`) ||
-      this.accessory.addService(this.platform.Service.OccupancySensor, `${side} Occupancy Sensor`, this.bedId + `${side}OccupancySensor`)
+      this.accessory.addService(this.platform.Service.OccupancySensor, `${side} Occupancy Sensor`, this.bedId + `${side}OccupancySensor`);
 
       this.services[side].occupancySensor.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
-      .onGet((async () => this.getOccupancy(side)).bind(this));
+        .onGet((async () => this.getOccupancy(side)).bind(this));
 
       // Set up number control
       this.services[side].numberControl = this.accessory.getService(`${side} Number Control`) ||
-      this.accessory.addService(this.platform.Service.Lightbulb, `${side} Number Control`, this.bedId + `${side}NumberControl`)
+      this.accessory.addService(this.platform.Service.Lightbulb, `${side} Number Control`, this.bedId + `${side}NumberControl`);
 
       this.services[side].numberControl.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(async () => null)
-      .onGet(async () => true);
+        .onSet(async () => null)
+        .onGet(async () => true);
       this.services[side].numberControl.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet((async (value: CharacteristicValue) => this.setNumber(side, value as number)).bind(this))
-      .onGet((async () => this.getNumber(side)).bind(this));
+        .onSet((async (value: CharacteristicValue) => this.setNumber(side, value as number)).bind(this))
+        .onGet((async () => this.getNumber(side)).bind(this));
 
       // Set up responsive air
       this.services[side].responsiveAir = this.accessory.getService(`${side} Responsive Air`) ||
@@ -84,65 +95,70 @@ export class BedAccessory {
           if (this.accessory.context.bedFeatures[side][actuatorName]) {
             this.services[side][actuatorName] = this.accessory.getService(`${side} ${actuatorName}`) ||
             this.accessory.addService(this.platform.Service.Lightbulb, `${side} ${actuatorName}`, this.bedId + side + actuatorNameCaps);
-    
+
             this.services[side][actuatorName].getCharacteristic(this.platform.Characteristic.On)
-            .onSet(async () => null)
-            .onGet(async () => true);
+              .onSet(async () => null)
+              .onGet(async () => true);
             this.services[side][actuatorName].getCharacteristic(this.platform.Characteristic.Brightness)
-            .onSet((async (value: CharacteristicValue) => this.setActuatorPosition(side, actuator, value as number)).bind(this))
-            .onGet((async () => this.getActuatorPosition(side, actuator)).bind(this));
+              .onSet((async (value: CharacteristicValue) => this.setActuatorPosition(side, actuator, value as number)).bind(this))
+              .onGet((async () => this.getActuatorPosition(side, actuator)).bind(this));
           }
-        })
+        });
 
         // Set up outlets and lights
         const outlets = (side === BedSide_e.LeftSide) ? {
-          outlet: Outlets_e.LeftPlug, 
-          light: Outlets_e.LeftLight
-         } : {
-          outlet: Outlets_e.RightPlug, 
-          light: Outlets_e.RightLight
+          outlet: Outlets_e.LeftPlug,
+          light: Outlets_e.LeftLight,
+        } : {
+          outlet: Outlets_e.RightPlug,
+          light: Outlets_e.RightLight,
         };
 
         const outletNames = {
           outlet: 'Outlet',
-          light: 'Light'
-        }
+          light: 'Light',
+        };
 
         Object.entries(outlets).forEach(([outletKey, outlet]) => {
           if (this.accessory.context.bedFeatures[side][outletKey]) {
             // If foundation includes selected outlet
-            this.services[side]![`${side}${outletNames[outletKey]}`] = this.accessory.getService(`${side} ${outletNames[outletKey]} Control`) ||
-            this.accessory.addService(this.platform.Service.Outlet, `${side} ${outletNames[outletKey]} Control`, this.bedId + `${side}${outletNames[outletKey]}Control`);
+            this.services[side]![`${side}${outletNames[outletKey]}`] =
+              this.accessory.getService(`${side} ${outletNames[outletKey]} Control`) ||
+              this.accessory.addService(
+                this.platform.Service.Outlet,
+                `${side} ${outletNames[outletKey]} Control`,
+                this.bedId + `${side}${outletNames[outletKey]}Control`,
+              );
 
             this.services[side]![`${side}${outletNames[outletKey]}`]!.getCharacteristic(this.platform.Characteristic.On)
-            .onSet((async (value: CharacteristicValue) => this.setOutlet(outlet, value as boolean)).bind(this))
-            .onGet((async () => this.getOutlet(outlet)).bind(this));
+              .onSet((async (value: CharacteristicValue) => this.setOutlet(outlet, value as boolean)).bind(this))
+              .onGet((async () => this.getOutlet(outlet)).bind(this));
           }
-        })
+        });
 
         // Set up foot warming
         if (this.accessory.context.bedFeatures[side].footwarming) {
-          this.services[side].footwarmingControl = this.accessory.getService(`${side} Foot Warming`) || 
-          this.accessory.addService(this.platform.Service.HeaterCooler, `${side} Foot Warming`, this.bedId + `${side}FootwarmingControl`)
+          this.services[side].footwarmingControl = this.accessory.getService(`${side} Foot Warming`) ||
+          this.accessory.addService(this.platform.Service.HeaterCooler, `${side} Foot Warming`, this.bedId + `${side}FootwarmingControl`);
 
           this.services[side].footwarmingControl.getCharacteristic(this.platform.Characteristic.Active)
-          .onSet((async (value: CharacteristicValue) => this.setFootwarmingActive(side, value as number)).bind(this))
-          .onGet((async () => this.getFootwarmingActive(side)).bind(this));
+            .onSet((async (value: CharacteristicValue) => this.setFootwarmingActive(side, value as number)).bind(this))
+            .onGet((async () => this.getFootwarmingActive(side)).bind(this));
           this.services[side].footwarmingControl.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
-          .onGet((async () => this.getFootwarmingState(side)).bind(this));
+            .onGet((async () => this.getFootwarmingState(side)).bind(this));
           this.services[side].footwarmingControl.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
-          .onSet(async () => null)
-          .onGet(async () => TargetHeaterCoolerState.HEAT);
+            .onSet(async () => null)
+            .onGet(async () => TargetHeaterCoolerState.HEAT);
           this.services[side].footwarmingControl.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
-          .onGet((async () => this.getFootwarmingTimeRemaining(side)).bind(this));
+            .onGet((async () => this.getFootwarmingTimeRemaining(side)).bind(this));
           this.services[side].footwarmingControl.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-          .onSet((async (value: CharacteristicValue) => this.setFootwarmingValue(side, value as number)).bind(this))
-          .onGet((async () => this.getFootwarmingValue(side)).bind(this))
-          .setProps({ minStep: 1, minValue: 0, maxValue: 3});
+            .onSet((async (value: CharacteristicValue) => this.setFootwarmingValue(side, value as number)).bind(this))
+            .onGet((async () => this.getFootwarmingValue(side)).bind(this))
+            .setProps({ minStep: 1, minValue: 0, maxValue: 3});
         }
 
       }
-    })
+    });
   }
 
 
@@ -216,7 +232,7 @@ export class BedAccessory {
     return actuatorPosition!;
   }
 
-  
+
   async setOutlet(outlet: Outlets_e, value: boolean) {
     this.platform.log.debug(`[${this.bedName}][${Outlets_e[outlet]}] Set Outlet State -> ${value}`);
     this.snapi.outlet(this.bedId, outlet, value ? Outlet_Setting_e.On : Outlet_Setting_e.Off);
@@ -293,40 +309,50 @@ export class BedAccessory {
   async getFootwarming(side: BedSide_e): Promise<CharacteristicValue> {
     const data = await this.getFootwarmingStatus();
     const footwarmingStatus = side === BedSide_e.LeftSide ? data.footWarmingStatusLeft : data.footWarmingStatusRight;
-    this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming State -> ${Footwarming_e[footwarmingStatus]}`)
+    this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming State -> ${Footwarming_e[footwarmingStatus]}`);
     return footwarmingStatus;
   }
 
 
   getBedStatus() {
-    return this.batchRequests<BedStatusData>("_bed", () => this.snapi.bedStatus(this.bedId));
+    return this.batchRequests<BedStatusData>('_bed', () => this.snapi.bedStatus(this.bedId));
   }
 
   getResponsiveAirStatus() {
-    return this.batchRequests<ResponsiveAirStatusData>("_responsiveAir", () => this.snapi.responsiveAirStatus(this.bedId));
+    return this.batchRequests<ResponsiveAirStatusData>('_responsiveAir', () => this.snapi.responsiveAirStatus(this.bedId));
   }
 
   getFoundationStatus() {
-    return this.batchRequests<FoundationStatusData>("_foundation", () => this.snapi.foundationStatus(this.bedId));
+    return this.batchRequests<FoundationStatusData>('_foundation', () => this.snapi.foundationStatus(this.bedId));
   }
 
   getFootwarmingStatus() {
-    return this.batchRequests<FootwarmingStatusData>("_footwarming", () => this.snapi.footwarmingStatus(this.bedId));
+    return this.batchRequests<FootwarmingStatusData>('_footwarming', () => this.snapi.footwarmingStatus(this.bedId));
   }
 
-  batchRequests<T>(_p: string, func: (...args: any[]) => Promise<T>): Promise<T> {
-    if (this[_p] !== undefined) return this[_p];
+  batchRequests<T>(_p: string, func: () => Promise<T>): Promise<T> {
+    if (this[_p] !== undefined) {
+      return this[_p];
+    }
     this[_p] = func();
-    this[_p]!.then(() => { this[_p] = undefined},
-                 () => { this[_p] = undefined;});
-    return this[_p];  
+    this[_p]!.then(() => {
+      this[_p] = undefined;
+    },
+    () => {
+      this[_p] = undefined;
+    });
+    return this[_p];
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debounce(func: (...args: any[]) => any, timeout = 300): (...args: any[]) => void {
     let timer: NodeJS.Timeout;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (...args: any[]) => {
       clearTimeout(timer);
-      timer = setTimeout(() => { func.apply(this, args); }, timeout);
+      timer = setTimeout(() => {
+        func.apply(this, args);
+      }, timeout);
     };
   }
 }
