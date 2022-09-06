@@ -32,11 +32,11 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
   ) {
 
     this.disabled = false;
-    this.username = config["email"];
-    this.password = config["password"];
-    this.updateInterval = (config["updateInterval"] || 0) * 1000; // update values from the API every # seconds
-    this.sendDelay = (config["delay"] || 2) * 1000; // delay updating bed numbers by 2 seconds
-    this.platform = config["bedPlatform"];
+    this.username = config['email'];
+    this.password = config['password'];
+    this.updateInterval = (config['updateInterval'] || 0) * 1000; // update values from the API every # seconds
+    this.sendDelay = (config['delay'] || 2) * 1000; // delay updating bed numbers by 2 seconds
+    this.platform = config['bedPlatform'];
 
     // if (!this.username || !this.password) {
     //   this.log.warn("Ignoring BedControl setup because username or password was not provided.");
@@ -45,7 +45,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     // }
 
     this.snapi = new Snapi(this.username, this.password, this.log);
-      
+
     this.log.debug('Finished initializing platform:', PLATFORM_NAME);
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
@@ -99,8 +99,8 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
           footControl: false,
           outlet: false,
           light: false,
-          footwarming: false
-        }, 
+          footwarming: false,
+        },
         rightSide: {
           occupancy: true,
           numberControl: true,
@@ -109,7 +109,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
           footControl: false,
           outlet: false,
           light: false,
-          footwarming: false
+          footwarming: false,
         },
         anySide: {
           occupancy: true,
@@ -119,12 +119,12 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
           footControl: false,
           outlet: false,
           light: false,
-          footwarming: false
+          footwarming: false,
         },
         Manufacturer: 'Sleep Number',
         Model: bedStats!.model,
         SerialNumber: bedStats!.bedId,
-      }
+      };
 
       // Set up the accessory
       const uuid = this.api.hap.uuid.generate(bed.bedId);
@@ -134,22 +134,22 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
         // the bed already exists
         this.log.info('Restoring existing bed from cache:', existingBed.displayName);
 
-        if (existingBed.context.updateInterval !== this.updateInterval || 
-            existingBed.context.sendDelay !== this.sendDelay) {
-              // Update with new values for updateInterval and sendDelay
-              existingBed.context.updateInterval = this.updateInterval;
-              existingBed.context.sendDelay = this.sendDelay;
+        if (existingBed.context.updateInterval !== this.updateInterval ||
+        existingBed.context.sendDelay !== this.sendDelay) {
+          // Update with new values for updateInterval and sendDelay
+          existingBed.context.updateInterval = this.updateInterval;
+          existingBed.context.sendDelay = this.sendDelay;
 
-              this.api.updatePlatformAccessories([existingBed]);
-            }
-        
+          this.api.updatePlatformAccessories([existingBed]);
+        }
+
         //create the accessory handler for the restored bed
         new BedAccessory(this, existingBed, this.snapi);
       } else {
         // the bed doesn't exist yet, so we need to create it
         this.log.info('Adding new bed:', bedStats!.name);
-      
-        
+
+
         // Check if there is a foundation attached and update available devices
         try {
           await this.snapi.foundationStatus(bed.bedId);
@@ -229,8 +229,8 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
         // link the accessory to the platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [bedAccessory]);
       }
-      
-    })
+
+    });
   }
 
 
@@ -244,9 +244,9 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
             [BedSide_e.LeftSide, BedSide_e.RightSide].forEach(side => {
               bedAccessory.services[side].occupancySensor.updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
               bedAccessory.services[side].numberControl.updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
-            })
+            });
           }
-        })
+        });
       }, this.updateInterval);
     }
   }
