@@ -23,10 +23,13 @@ export class BedAccessory {
 
   protected bedId: string;
   protected bedName: string;
+
+  // used in batchRequests
   private _bed?: Promise<BedStatusData> = undefined;
   private _responsiveAir?: Promise<ResponsiveAirStatusData> = undefined;
   private _foundation?: Promise<FoundationStatusData> = undefined;
   private _footwarming?: Promise<FootwarmingStatusData> = undefined;
+
   private setSleepNumber: (...args: [string, BedSide_e, number]) => void;
   private adjustActuator: (...args: [string, BedSide_e, number, Actuator_e]) => void;
 
@@ -53,24 +56,28 @@ export class BedAccessory {
       this.services[side] = {};
 
       // Set up number control
-      this.services[side]!.numberControl = this.accessory.getService(`${side} Number Control`) ||
-      this.accessory.addService(this.platform.Service.Lightbulb, `${side} Number Control`, this.bedId + `${side}NumberControl`);
+      if (this.accessory.context.bedFeatures[side].numberControl) {
+        this.services[side]!.numberControl = this.accessory.getService(`${side} Number Control`) ||
+        this.accessory.addService(this.platform.Service.Lightbulb, `${side} Number Control`, this.bedId + `${side}NumberControl`);
 
-      this.services[side]!.numberControl!.getCharacteristic(this.platform.Characteristic.On)
-        .onSet(async () => null)
-        .onGet(async () => true);
-      this.services[side]!.numberControl!.getCharacteristic(this.platform.Characteristic.Brightness)
-        .onSet((async (value: CharacteristicValue) => this.setNumber(side, value as number)).bind(this))
-        .onGet((async () => this.getNumber(side)).bind(this))
-        .setProps({ minStep: 5, minValue: 5, maxValue: 100 });
+        this.services[side]!.numberControl!.getCharacteristic(this.platform.Characteristic.On)
+          .onSet(async () => null)
+          .onGet(async () => true);
+        this.services[side]!.numberControl!.getCharacteristic(this.platform.Characteristic.Brightness)
+          .onSet((async (value: CharacteristicValue) => this.setNumber(side, value as number)).bind(this))
+          .onGet((async () => this.getNumber(side)).bind(this))
+          .setProps({ minStep: 5, minValue: 5, maxValue: 100 });
+      }
 
 
       // Set up occupancy sensor
-      this.services[side]!.occupancySensor = this.accessory.getService(`${side} Occupancy Sensor`) ||
-      this.accessory.addService(this.platform.Service.OccupancySensor, `${side} Occupancy Sensor`, this.bedId + `${side}OccupancySensor`);
+      if (this.accessory.context.bedFeatures[side].occupancySensor) {
+        this.services[side]!.occupancySensor = this.accessory.getService(`${side} Occupancy Sensor`) ||
+        this.accessory.addService(this.platform.Service.OccupancySensor, `${side} Occupancy Sensor`, this.bedId + `${side}OccupancySensor`);
 
-      this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
-        .onGet((async () => this.getOccupancy(side)).bind(this));
+        this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
+          .onGet((async () => this.getOccupancy(side)).bind(this));
+      }
 
 
       // Set up foundation
@@ -110,7 +117,7 @@ export class BedAccessory {
         Object.entries(outlets).forEach(([outletKey, outlet]) => {
           if (this.accessory.context.bedFeatures[side][outletKey]) {
             // If foundation includes selected outlet
-            this.services[side]![`${side}${outletNames[outletKey]}`] =
+            this.services[side]![outletKey] =
               this.accessory.getService(`${side} ${outletNames[outletKey]} Control`) ||
               this.accessory.addService(
                 this.platform.Service.Outlet,
@@ -118,7 +125,7 @@ export class BedAccessory {
                 this.bedId + `${side}${outletNames[outletKey]}Control`,
               );
 
-            this.services[side]![`${side}${outletNames[outletKey]}`]!.getCharacteristic(this.platform.Characteristic.On)
+            this.services[side]![outletKey]!.getCharacteristic(this.platform.Characteristic.On)
               .onSet((async (value: CharacteristicValue) => this.setOutlet(outlet, value as boolean)).bind(this))
               .onGet((async () => this.getOutlet(outlet)).bind(this));
           }
@@ -148,22 +155,61 @@ export class BedAccessory {
       }
 
       // Set up responsive air
-      this.services[side]!.responsiveAir = this.accessory.getService(`${side} Responsive Air`) ||
-      this.accessory.addService(this.platform.Service.Switch, `${side} Responsive Air`, this.bedId + `${side}ResponsiveAir`);
+      if (this.accessory.context.bedFeatures[side].responsiveAir) {
+        this.services[side]!.responsiveAir = this.accessory.getService(`${side} Responsive Air`) ||
+        this.accessory.addService(this.platform.Service.Switch, `${side} Responsive Air`, this.bedId + `${side}ResponsiveAir`);
 
-      this.services[side]!.responsiveAir!.getCharacteristic(this.platform.Characteristic.On)
-        .onSet((async (value: CharacteristicValue) => this.setResponsiveAir(side, value as boolean)).bind(this))
-        .onGet((async () => this.getResponsiveAir(side)).bind(this));
+        this.services[side]!.responsiveAir!.getCharacteristic(this.platform.Characteristic.On)
+          .onSet((async (value: CharacteristicValue) => this.setResponsiveAir(side, value as boolean)).bind(this))
+          .onGet((async () => this.getResponsiveAir(side)).bind(this));
+      }
     });
 
     // Set up privacy switch
-    this.services.privacySwitch = this.accessory.getService('Privacy Switch') ||
-    this.accessory.addService(this.platform.Service.Switch, 'Privacy Switch', this.bedId + 'privacySwitch');
+    if (this.accessory.context.bedFeatures.privacy) {
+      this.services.privacySwitch = this.accessory.getService('Privacy Switch') ||
+      this.accessory.addService(this.platform.Service.Switch, 'Privacy Switch', this.bedId + 'privacySwitch');
 
-    this.services.privacySwitch.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setPrivacy.bind(this))
-      .onGet(this.getPrivacy.bind(this));
+      this.services.privacySwitch.getCharacteristic(this.platform.Characteristic.On)
+        .onSet(this.setPrivacy.bind(this))
+        .onGet(this.getPrivacy.bind(this));
+    }
 
+    // Set up "any side" sensors
+    this.services.anySide = {};
+
+    // Set up occupancy sensor
+    if (this.accessory.context.bedFeatures.anySide.occupancy) {
+      this.services.anySide.occupancySensor = this.accessory.getService('anySide Occupancy Sensor') ||
+      this.accessory.addService(this.platform.Service.OccupancySensor, 'anySide Occupancy Sensor', this.bedId + 'anySideOccupancySensor');
+
+      this.services.anySide.occupancySensor.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
+        .onGet(this.getAnyOccupancy.bind(this));
+    }
+
+
+    // Set up outlets and lights
+    const outlets = {
+      outlet: 'Outlet',
+      light: 'Light',
+    };
+
+    Object.entries(outlets).forEach(([outletKey, outlet]) => {
+      if (this.accessory.context.bedFeatures.anySide[outletKey]) {
+        // If foundation includes selected outlet
+        this.services.anySide![outletKey] =
+          this.accessory.getService(`anySide ${outlet} Control`) ||
+          this.accessory.addService(
+            this.platform.Service.Outlet,
+            `anySide ${outlet} Control`,
+            this.bedId + `anySide${outlet}Control`,
+          );
+
+        this.services.anySide![outletKey]!.getCharacteristic(this.platform.Characteristic.On)
+          .onSet((async (value: CharacteristicValue) => this.setAnyOutlet(outletKey, value as boolean)).bind(this))
+          .onGet((async () => this.getAnyOutlet(outletKey)).bind(this));
+      }
+    });
   }
 
 
@@ -200,6 +246,14 @@ export class BedAccessory {
     const data = await this.getBedStatus();
     const isInBed = data[side].isInBed ? 1 : 0;
     this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
+    return isInBed;
+  }
+
+
+  async getAnyOccupancy(): Promise<CharacteristicValue> {
+    const data = await this.getBedStatus();
+    const isInBed = (data.leftSide.isInBed || data.rightSide.isInBed) ? 1 : 0;
+    this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
     return isInBed;
   }
 
@@ -252,6 +306,54 @@ export class BedAccessory {
     const data = await this.snapi.outletStatus(this.bedId, outlet);
     const outletStatus = data.setting;
     this.platform.log.debug(`[${this.bedName}][${Outlets_e[outlet]}] Get Outlet State -> ${outletStatus}`);
+    return outletStatus;
+  }
+
+
+  async setAnyOutlet(outletKey: string, value: boolean) {
+    const outlets = {
+      leftSide: {
+        outlet: Outlets_e.LeftPlug,
+        light: Outlets_e.LeftLight,
+      },
+      rightSide: {
+        outlet: Outlets_e.RightPlug,
+        light: Outlets_e.RightLight,
+      },
+    };
+
+    this.platform.log.debug(`[${this.bedName}][anySide] Set Outlet State -> ${value}`);
+    [BedSideKey_e.LeftSide, BedSideKey_e.RightSide].forEach(side => {
+      if (this.accessory.context.bedFeatures[side][outletKey]) {
+        this.snapi.outlet(this.bedId, outlets[side][outletKey], value ? Outlet_Setting_e.On : Outlet_Setting_e.Off);
+      }
+    });
+  }
+
+
+  async getAnyOutlet(outletKey: string): Promise<CharacteristicValue> {
+    const outlets = {
+      leftSide: {
+        outlet: Outlets_e.LeftPlug,
+        light: Outlets_e.LeftLight,
+      },
+      rightSide: {
+        outlet: Outlets_e.RightPlug,
+        light: Outlets_e.RightLight,
+      },
+    };
+    let leftStatus = Outlet_Setting_e.Off;
+    let rightStatus = Outlet_Setting_e.Off;
+
+    if (this.accessory.context.bedFeatures.leftSide[outletKey]) {
+      leftStatus = (await this.snapi.outletStatus(this.bedId, outlets.leftSide[outletKey])).setting;
+    }
+    if (this.accessory.context.bedFeatures.rightSide[outletKey]) {
+      rightStatus = (await this.snapi.outletStatus(this.bedId, outlets.rightSide[outletKey])).setting;
+    }
+
+    const outletStatus = leftStatus || rightStatus;
+    this.platform.log.debug(`[${this.bedName}][anySide] Get Outlet State -> ${outletStatus}`);
     return outletStatus;
   }
 

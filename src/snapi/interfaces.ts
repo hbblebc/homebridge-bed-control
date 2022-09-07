@@ -370,10 +370,8 @@ export interface SideServices {
   responsiveAir?: Switch;
   headControl?: Lightbulb;
   footControl?: Lightbulb;
-  leftSideOutlet?: Outlet;
-  rightSideOutlet?: Outlet;
-  leftSideLight?: Outlet;
-  rightSideLight?: Outlet;
+  outlet?: Outlet;
+  light?: Outlet;
   footwarmingControl?: HeaterCooler;
 }
 
@@ -381,4 +379,5 @@ export interface Services {
   privacySwitch?: Switch;
   leftSide?: SideServices;
   rightSide?: SideServices;
+  anySide?: SideServices;
 }
