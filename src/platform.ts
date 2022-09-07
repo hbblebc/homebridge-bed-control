@@ -23,6 +23,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
   public updateInterval: number;
   public sendDelay: number;
   public platform: string;
+  public ignoreList: string[];
   public snapi: Snapi;
 
   constructor(
@@ -37,6 +38,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     this.updateInterval = (config['updateInterval'] || 0) * 1000; // update values from the API every # seconds
     this.sendDelay = (config['delay'] || 2) * 1000; // delay updating bed numbers by 2 seconds
     this.platform = config['bedPlatform'];
+    this.ignoreList = config['ignore'] || [];
 
     // if (!this.username || !this.password) {
     //   this.log.warn("Ignoring BedControl setup because username or password was not provided.");
@@ -130,6 +132,11 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
       const uuid = this.api.hap.uuid.generate(bed.bedId);
       const existingBed = this.accessories.find(a => a.UUID === uuid);
 
+      // Check if bed is disabled
+      if (this.ignoreList.includes(bed.bedId)) {
+        return;
+      }
+
       if (existingBed) {
         // the bed already exists
         this.log.info('Restoring existing bed from cache:', existingBed.displayName);
@@ -212,6 +219,43 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
         } catch(e) {
           this.log.info(`[${bedStats!.name}] Foundation not detected`);
         }
+
+        this.ignoreList.forEach(ignoreString => {
+          const ignoreVals = ignoreString.split('.');
+          if (ignoreVals[0] === bed.bedId) {
+            if (ignoreVals.length === 2) {
+              if (['leftSide', 'rightSide', 'anySide'].includes(ignoreVals[1])) {
+                Object.keys(bedFeatures[ignoreVals[1]]).forEach(feature => {
+                  bedFeatures[ignoreVals[1]][feature] = false;
+                });
+              } else if (['privacy', 'foundation'].includes(ignoreVals[1])) {
+                bedFeatures[ignoreVals[1]] = false;
+              } else {
+                this.log.error(`Unknown ignore list value: ${ignoreString}`);
+              }
+            } else if (ignoreVals.length === 3) {
+              if (
+                ['leftSide', 'rightSide', 'anySide'].includes(ignoreVals[1]) &&
+                [
+                  'occupancy',
+                  'numberControl',
+                  'responsiveAir',
+                  'headControl',
+                  'footControl',
+                  'outlet',
+                  'light',
+                  'footwarming',
+                ].includes(ignoreVals[2])
+              ) {
+                bedFeatures[ignoreVals[1]][ignoreVals[2]] = false;
+              } else {
+                this.log.error(`Unknown ignore list value: ${ignoreString}`);
+              }
+            } else {
+              this.log.error(`Unknown ignore list value: ${ignoreString}`);
+            }
+          }
+        });
 
 
         // create a new bed accessory

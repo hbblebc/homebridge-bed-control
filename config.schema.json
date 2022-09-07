@@ -51,6 +51,16 @@
         "description": "Controls the debounce delay between setting your sleep number using the slider in Homekit and the value being sent to the bed platform to adjust your bed.",
         "min": 0,
         "max": 30
+      },
+      "ignore": {
+        "title": "Accessory Ignore List",
+        "type": "array",
+        "required": false,
+        "description": "Add accessories you don't want Homebridge to track in the format: <bedId>.<bedFeature>. For example: -9223372019955931774.leftSide.occupancy will hide the occupancy sensor on the left side of the selected bed, -9223372019955931774.anySide will hide all sensors for the combined 'anySide', and -9223372019955931774 will hide the entire bed. You can find your bedId if you examine the homebridge BedControl debug logs.",
+        "items": {
+          "title": "Feature Path",
+          "type": "string"
+        }
       }
     }
   }
