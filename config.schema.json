@@ -56,6 +56,11 @@
         "title": "Accessory Ignore List",
         "type": "array",
         "required": false,
+        "default": [
+          "<bedId>.leftSide.occupancySensor",
+          "<bedId>.rightSide.occupancySensor",
+          "<bedId>.anySide.occupancySensor"
+        ],
         "description": "Add accessories you don't want Homebridge to track in the format: <bedId>.<bedFeature>. For example: -9223372019955931774.leftSide.occupancy will hide the occupancy sensor on the left side of the selected bed, -9223372019955931774.anySide will hide all sensors for the combined 'anySide', and -9223372019955931774 will hide the entire bed. You can find your bedId if you examine the homebridge BedControl debug logs.",
         "items": {
           "title": "Feature Path",

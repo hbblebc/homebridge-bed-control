@@ -342,7 +342,7 @@ export interface SleepSliceDataData {
 
 // bedFeatures type
 export interface SideFeatures {
-  occupancy: boolean;
+  occupancySensor: boolean;
   numberControl: boolean;
   responsiveAir: boolean;
   headControl: boolean;

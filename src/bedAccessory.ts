@@ -179,7 +179,7 @@ export class BedAccessory {
     this.services.anySide = {};
 
     // Set up occupancy sensor
-    if (this.accessory.context.bedFeatures.anySide.occupancy) {
+    if (this.accessory.context.bedFeatures.anySide.occupancySensor) {
       this.services.anySide.occupancySensor = this.accessory.getService('anySide Occupancy Sensor') ||
       this.accessory.addService(this.platform.Service.OccupancySensor, 'anySide Occupancy Sensor', this.bedId + 'anySideOccupancySensor');
 
