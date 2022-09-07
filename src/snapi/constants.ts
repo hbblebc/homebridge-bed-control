@@ -1,34 +1,34 @@
-const rootURL: string = 'https://api.sleepiq.sleepnumber.com/rest/';
+const rootURL = 'https://api.sleepiq.sleepnumber.com/rest/';
 
-export const loginURL: string = `${rootURL}login`;
-export const registrationURL: string = `${rootURL}registration`;
-export const sleeperURL: string = `${rootURL}sleeper`;
-export const bedURL: string = `${rootURL}bed`;
-export const sleepDataURL: string = `${rootURL}sleepData`;
-export const sleepSliceDataURL: string = `${rootURL}sleepSliceData`;
+export const loginURL = `${rootURL}login`;
+export const registrationURL = `${rootURL}registration`;
+export const sleeperURL = `${rootURL}sleeper`;
+export const bedURL = `${rootURL}bed`;
+export const sleepDataURL = `${rootURL}sleepData`;
+export const sleepSliceDataURL = `${rootURL}sleepSliceData`;
 
-export const familyStatusURL: string = `${bedURL}/familyStatus`;
+export const familyStatusURL = `${bedURL}/familyStatus`;
 
-const bedIdURL: string = `${bedURL}/{0}/`;
-export const bedStatusURL: string = `${bedIdURL}status`;
-export const bedPauseModeURL: string = `${bedIdURL}pauseMode`;
-export const sleepNumberURL: string = `${bedIdURL}sleepNumber`;
-export const responsiveAirURL: string = `${bedIdURL}responsiveAir`;
+const bedIdURL = `${bedURL}/{0}/`;
+export const bedStatusURL = `${bedIdURL}status`;
+export const bedPauseModeURL = `${bedIdURL}pauseMode`;
+export const sleepNumberURL = `${bedIdURL}sleepNumber`;
+export const responsiveAirURL = `${bedIdURL}responsiveAir`;
 
-const pumpURL: string = `${bedIdURL}pump/`;
-export const forceIdleURL: string = `${pumpURL}forceIdle`;
-export const pumpStatusURL: string = `${pumpURL}status`;
+const pumpURL = `${bedIdURL}pump/`;
+export const forceIdleURL = `${pumpURL}forceIdle`;
+export const pumpStatusURL = `${pumpURL}status`;
 
-const foundationURL: string = `${bedIdURL}foundation/`;
-export const presetURL: string = `${foundationURL}preset`;
-export const foundationStatusURL: string = `${foundationURL}status`;
-export const outletStatusURL: string = `${foundationURL}outlet`;
-export const motionURL: string = `${foundationURL}motion`;
-export const underbedLightURL: string = `${foundationURL}underbedLight`;
-export const pinchURL: string = `${foundationURL}pinch`;
-export const systemURL: string = `${foundationURL}system`;
-export const statusURL: string = `${foundationURL}status`;
-export const footwarmingURL: string = `${foundationURL}footwarming`;
+const foundationURL = `${bedIdURL}foundation/`;
+export const presetURL = `${foundationURL}preset`;
+export const foundationStatusURL = `${foundationURL}status`;
+export const outletStatusURL = `${foundationURL}outlet`;
+export const motionURL = `${foundationURL}motion`;
+export const underbedLightURL = `${foundationURL}underbedLight`;
+export const pinchURL = `${foundationURL}pinch`;
+export const systemURL = `${foundationURL}system`;
+export const statusURL = `${foundationURL}status`;
+export const footwarmingURL = `${foundationURL}footwarming`;
 
-export const adjustmentURL: string = `${foundationURL}adjustment`;
-export const adjustURL: string = `${adjustmentURL}/micro`;
+export const adjustmentURL = `${foundationURL}adjustment`;
+export const adjustURL = `${adjustmentURL}/micro`;

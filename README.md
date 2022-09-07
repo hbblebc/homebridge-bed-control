@@ -31,5 +31,24 @@ Install through homebridge-config-ui-x.
 
 Configure in Homebridge UI following config.schema.json
 
+# Usage
+
+The platform supports the following HomeKit devices:
+
+- Inflation numbers and head/foot positions are modeled as a lightbulb in HomeKit. 
+  - This allows you to set the value easily. Keep this in mind when telling Siri to turn off all the lights. 
+- Occupancy of the bed is a standard occupancy sensor
+- Outlets and lights are homekit outlets
+- Privacy mode and Responsive Air mode are homekit switches
+- Foot warming is modeled as a thermostat (This is a little odd but easy to learn)
+  - The thermostat has 4 modes that map to the following temperature controls:
+    - Off -> Off
+    - Auto -> Low
+    - Cool -> Medium
+    - Heat -> High
+  - The temperature slider for the thermstat allows you to control the foot warming timer. It only has a range of 50-100, so if you want to set the foot warming timer to a different value, you will need to use the bed app, or create an automation to to set the temperature every X minutes. 
+
+All the controls for a single bed will be grouped inside of a single device matching the name of the bed. If you would rather have separate controls, the HomeKit app will let you split the device into separate controls
+
 # Issues/Future Work
 None for now

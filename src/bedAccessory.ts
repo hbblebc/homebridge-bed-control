@@ -1,4 +1,4 @@
-import { TargetHeaterCoolerState } from 'hap-nodejs/dist/lib/definitions';
+import { TemperatureDisplayUnits } from 'hap-nodejs/dist/lib/definitions';
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { BedControlPlatform } from './platform';
@@ -134,22 +134,21 @@ export class BedAccessory {
         // Set up foot warming
         if (this.accessory.context.bedFeatures[side].footwarming) {
           this.services[side]!.footwarmingControl = this.accessory.getService(`${side} Foot Warming`) ||
-          this.accessory.addService(this.platform.Service.HeaterCooler, `${side} Foot Warming`, this.bedId + `${side}FootwarmingControl`);
+          this.accessory.addService(this.platform.Service.Thermostat, `${side} Foot Warming`, this.bedId + `${side}FootwarmingControl`);
 
-          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.Active)
-            .onSet((async (value: CharacteristicValue) => this.setFootwarmingActive(side, value as number)).bind(this))
-            .onGet((async () => this.getFootwarmingActive(side)).bind(this));
-          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
-            .onGet((async () => this.getFootwarmingState(side)).bind(this));
-          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
-            .onSet(async () => null)
-            .onGet(async () => TargetHeaterCoolerState.HEAT);
+          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState)
+            .onGet((async () => this.getFootwarmingValue(side)).bind(this));
+          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState)
+            .onSet((async (value: CharacteristicValue) => this.setFootwarmingValue(side, value as number)).bind(this))
+            .onGet((async () => this.getFootwarmingValue(side)).bind(this));
           this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
             .onGet((async () => this.getFootwarmingTimeRemaining(side)).bind(this));
-          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-            .onSet((async (value: CharacteristicValue) => this.setFootwarmingValue(side, value as number)).bind(this))
-            .onGet((async () => this.getFootwarmingValue(side)).bind(this))
-            .setProps({ minStep: 1, minValue: 0, maxValue: 3});
+          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.TargetTemperature)
+            .onSet((async (value: CharacteristicValue) => this.setFootwarmingTimeRemaining(side, value as number)).bind(this))
+            .onGet(async () => 37.8);
+          this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
+            .onSet(async () => null)
+            .onGet(async () => TemperatureDisplayUnits.FAHRENHEIT);
         }
 
       }
@@ -358,37 +357,34 @@ export class BedAccessory {
   }
 
 
-  async setFootwarmingActive(side: BedSideKey_e, value: number) {
-    return this.setFootwarming(side, value ? Footwarming_e.Low : Footwarming_e.Off);
-  }
-
-
-  async getFootwarmingActive(side: BedSideKey_e): Promise<CharacteristicValue> {
-    const footwarmingStatus = await this.getFootwarming(side);
-    return (footwarmingStatus !== Footwarming_e.Off) ? 1 : 0;
-  }
-
-
-  async getFootwarmingState(side: BedSideKey_e): Promise<CharacteristicValue> {
-    const footwarmingStatus = await this.getFootwarming(side);
-    return (footwarmingStatus !== Footwarming_e.Off) ? 2 : 0;
-  }
-
-
   async getFootwarmingTimeRemaining(side: BedSideKey_e): Promise<CharacteristicValue> {
     const data = await this.getFootwarmingStatus();
     const footwarmingTimeRemaining = side === BedSideKey_e.LeftSide ? data.footWarmingTimerLeft : data.footWarmingTimerRight;
     this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming Timer Remaining -> ${footwarmingTimeRemaining}`);
-    return Math.min(footwarmingTimeRemaining, 100);
+    return +(((footwarmingTimeRemaining - 32) * 5 / 9).toPrecision(1));
   }
+
+
+  async setFootwarmingTimeRemaining(side: BedSideKey_e, value: number) {
+    const data = await this.getFootwarmingStatus();
+    const temp = side === BedSideKey_e.LeftSide ? data.footWarmingStatusLeft : data.footWarmingStatusRight;
+    value = +(((value * 9 / 5) + 32).toFixed(0));
+    this.platform.log.debug(`[${this.bedName}][${side}] Set Footwarming Timer -> ${value} minutes`);
+    if (side === BedSideKey_e.LeftSide) {
+      this.snapi.footwarming(this.bedId, temp, undefined, value, undefined);
+    } else {
+      this.snapi.footwarming(this.bedId, undefined, temp, undefined, value);
+    }
+  }
+
 
 
   async setFootwarmingValue(side: BedSideKey_e, value: number) {
     let temp = Footwarming_e.Off;
     switch(value) {
-      case 1: temp = Footwarming_e.Low; break;
+      case 1: temp = Footwarming_e.High; break;
       case 2: temp = Footwarming_e.Med; break;
-      case 3: temp = Footwarming_e.High; break;
+      case 3: temp = Footwarming_e.Low; break;
       default: temp = Footwarming_e.Off; break;
     }
     return this.setFootwarming(side, temp);
@@ -399,9 +395,9 @@ export class BedAccessory {
     const footwarmingStatus = await this.getFootwarming(side);
     let value = 0;
     switch(footwarmingStatus) {
-      case Footwarming_e.Low: value = 1; break;
+      case Footwarming_e.Low: value = 2; break;
       case Footwarming_e.Med: value = 2; break;
-      case Footwarming_e.High: value = 3; break;
+      case Footwarming_e.High: value = 1; break;
       default: value = 0; break;
     }
     return value;
