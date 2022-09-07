@@ -326,12 +326,13 @@ class snapi {
 
   async sleepNumber(bedId: string, side: BedSide_e, num: number) {
     num = Math.round(num);
-    if (num < 0) {
-      num = 0;
+    if (num < 5) {
+      num = 5;
     }
     if (num > 100) {
       num = 100;
     }
+    num = (num - (num % 5));
 
     const res = await this.putSleepNumber(bedId, side, num);
     const { data } = res;

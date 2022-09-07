@@ -2,7 +2,7 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import Snapi from './snapi/snapi';
-import { BedFeatures, BedSide_e, BedState, Outlets_e } from './snapi/interfaces';
+import { BedFeatures, BedSideKey_e, BedState, Outlets_e } from './snapi/interfaces';
 import { BedAccessory } from './bedAccessory';
 
 /**
@@ -241,7 +241,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
         beds.forEach(bed => {
           const bedAccessory = this.accessories.find(a => a.context.bedStats.bedid === bed.bedId);
           if (bedAccessory) {
-            [BedSide_e.LeftSide, BedSide_e.RightSide].forEach(side => {
+            [BedSideKey_e.LeftSide, BedSideKey_e.RightSide].forEach(side => {
               bedAccessory.services[side].occupancySensor.updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
               bedAccessory.services[side].numberControl.updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
             });
