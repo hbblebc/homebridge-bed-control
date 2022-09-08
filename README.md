@@ -46,7 +46,7 @@ The platform supports the following HomeKit devices:
     - Auto -> Low
     - Cool -> Medium
     - Heat -> High
-  - The temperature slider for the thermstat allows you to control the foot warming timer. It only has a range of 50-100, so if you want to set the foot warming timer to a different value, you will need to use the bed app, or create an automation to to set the temperature every X minutes. 
+  - The temperature slider for the thermostat allows you to control the foot warming timer. It only has a range of 50-100, so if you want to set the foot warming timer to a different value, you will need to use the bed app, or create an automation to to set the temperature every X minutes. 
 
 All the controls for a single bed will be grouped inside of a single device matching the name of the bed. If you would rather have separate controls, the HomeKit app will let you split the device into separate controls
 

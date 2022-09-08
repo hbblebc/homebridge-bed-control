@@ -81,6 +81,10 @@ class snapi {
   protected userId = '';
   protected bedID: string[] = [];
   private key = '';
+  protected apiDisabled = false;
+
+  // used in batchRequests
+  private _login?: Promise<LoginData> = undefined;
 
   constructor(
     private readonly username: string,
@@ -92,32 +96,41 @@ class snapi {
   process_errors(e: Error | AxiosError) {
     if (axios.isAxiosError(e)) {
       if (this.log) {
-        this.log.error('[snapi][login]', e.response?.status, e.response?.statusText);
+        this.log.error('[snapi]', e.response?.status, e.response?.statusText);
+        this.log.error('[snapi] Disabling API. No further requests will be attempted');
       } else {
-        console.error('[snapi][login]', e.response?.status, e.response?.statusText);
+        console.error('[snapi]', e.response?.status, e.response?.statusText);
+        console.error('[snapi] Disabling API. No further requests will be attempted');
       }
     }
-    throw e;
+    this.apiDisabled = true;
   }
 
 
-  async retry<T>(func: () => Promise<T>): Promise<T> {
-    try {
-      return await func();
-    } catch (_e) {
-      const e: Error = _e as Error;
-      if (axios.isAxiosError(e)) {
-        if (e.response?.statusText === 'Unauthorized') {
-          await this.login();
-          return await func();
+  async retry<T>(func: () => Promise<T>, count = 0): Promise<T | undefined> {
+    if (this.apiDisabled || count === 2) {
+      return undefined;
+    } else {
+      try {
+        return await func();
+      } catch (_e) {
+        const e: Error = _e as Error;
+        if (axios.isAxiosError(e)) {
+          if (e.response?.statusText === 'Unauthorized') {
+            if (count === 0) {
+              await this.batchLogin();
+            }
+            return await this.retry(func, count + 1);
+          }
+        } else {
+          this.process_errors(e);
         }
       }
-      throw e;
     }
   }
 
 
-  async login(username: string = this.username, password: string = this.password) {
+  async login(username: string = this.username, password: string = this.password): Promise<LoginData | undefined> {
     try {
       const res = await client.put<LoginData>(loginURL, {
         login: username,
@@ -140,6 +153,11 @@ class snapi {
   }
 
 
+  batchLogin() {
+    return this.batchRequests<LoginData | undefined>('_login', () => this.login(this.username, this.password));
+  }
+
+
   getRegistration() {
     return this.retry<AxiosResponse<RegistrationData>>(() => {
       return client.get<RegistrationData>(registrationURL, {
@@ -153,14 +171,16 @@ class snapi {
 
   async registration() {
     const res = await this.getRegistration();
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][registration]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][registration]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -177,14 +197,16 @@ class snapi {
 
   async familyStatus() {
     const res = await this.getFamilyStatus();
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
+      }
+      return data.beds;
     }
-    return data.beds;
   }
 
 
@@ -201,14 +223,16 @@ class snapi {
 
   async sleeper() {
     const res = await this.getSleeper();
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -225,14 +249,16 @@ class snapi {
 
   async bed() {
     const res = await this.getBed();
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][bed]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][bed]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -249,14 +275,16 @@ class snapi {
 
   async bedStatus(bedId: string) {
     const res = await this.getBedStatus(bedId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -273,15 +301,17 @@ class snapi {
 
   async bedPauseMode(bedId: string) {
     const res = await this.getBedPauseMode(bedId);
-    const { data } = res;
-    const pauseMode = data.pauseMode;
+    if (res !== undefined) {
+      const { data } = res;
+      const pauseMode = data.pauseMode;
 
-    if (this.log) {
-      this.log.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
+      }
+      return pauseMode;
     }
-    return pauseMode;
   }
 
 
@@ -299,14 +329,16 @@ class snapi {
 
   async setBedPauseMode(bedId: string, mode: PauseMode_e) {
     const res = await this.putBedPauseMode(bedId, mode);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -335,14 +367,16 @@ class snapi {
     num = (num - (num % 5));
 
     const res = await this.putSleepNumber(bedId, side, num);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -359,14 +393,16 @@ class snapi {
 
   async responsiveAirStatus(bedId: string) {
     const res = await this.getResponsiveAirStatus(bedId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -386,14 +422,16 @@ class snapi {
 
   async responsiveAir(bedId: string, left?: boolean, right?: boolean) {
     const res = await this.putResponsiveAir(bedId, left, right);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -411,14 +449,16 @@ class snapi {
   // Forces the pump to stop if it is in the middle of an action
   async forceIdle(bedId: string) {
     const res = await this.putForceIdle(bedId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -435,14 +475,16 @@ class snapi {
 
   async pumpStatus(bedId: string) {
     const res = await this.getPumpStatus(bedId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -463,14 +505,16 @@ class snapi {
 
   async preset(bedId: string, side: BedSide_e, preset: Preset_e) {
     const res = await this.putPreset(bedId, side, preset);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -500,14 +544,16 @@ class snapi {
     }
 
     const res = await this.putAdjust(bedId, side, position, actuator);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -524,14 +570,16 @@ class snapi {
 
   async foundationStatus(bedId: string) {
     const res = await this.getFoundationStatus(bedId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -549,14 +597,16 @@ class snapi {
 
   async outletStatus(bedId: string, outletId: Outlets_e) {
     const res = await this.getOutletStatus(bedId, outletId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -575,14 +625,16 @@ class snapi {
 
   async outlet(bedId: string, outletId: Outlets_e, setting: Outlet_Setting_e) {
     const res = await this.putOutlet(bedId, outletId, setting);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -604,14 +656,16 @@ class snapi {
 
   async motion(bedId: string, side: BedSide_e, head: Motion_e, massage: Motion_e, foot: Motion_e) {
     const res = await this.putMotion(bedId, side, head, massage, foot);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -628,14 +682,16 @@ class snapi {
 
   async underbedLightStatus(bedId: string) {
     const res = await this.getUnderbedLightStatus(bedId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -654,14 +710,16 @@ class snapi {
 
   async underbedLight(bedId: string, enableAuto: boolean) {
     const res = await this.putUnderbedLight(bedId, enableAuto);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -678,14 +736,16 @@ class snapi {
 
   async footwarmingStatus(bedId: string) {
     const res = await this.getFootwarmingStatus(bedId);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -707,14 +767,16 @@ class snapi {
 
   async footwarming(bedId: string, left?: number, right?: number, timerLeft?: number, timerRight?: number) {
     const res = await this.putFootwarming(bedId, left, right, timerLeft, timerRight);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -737,14 +799,16 @@ class snapi {
 
   async adjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer = 15) {
     const res = await this.putAdjustment(bedId, side, head, waveMode, foot, timer);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -766,14 +830,16 @@ class snapi {
     // data_date format: 'YYYY-MM-DD'
     // interval format: 'D1' (1 day), 'M1' (1 month), etc.
     const res = await this.getSleepData(data_date, interval, sleeper);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
   }
 
 
@@ -795,14 +861,31 @@ class snapi {
     // data_date format: 'YYYY-MM-DD'
     // can optionally add a format:'csv' argument to get back a csv version of the data
     const res = await this.getSleepSliceData(data_date, sleeper, format);
-    const { data } = res;
+    if (res !== undefined) {
+      const { data } = res;
 
-    if (this.log) {
-      this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
-    } else {
-      console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+      if (this.log) {
+        this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+      } else {
+        console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
+      }
+      return data;
     }
-    return data;
+  }
+
+
+  batchRequests<T>(_p: string, func: () => Promise<T>): Promise<T> {
+    if (this[_p] !== undefined) {
+      return this[_p];
+    }
+    this[_p] = func();
+    this[_p]!.then(() => {
+      this[_p] = undefined;
+    },
+    () => {
+      this[_p] = undefined;
+    });
+    return this[_p];
   }
 
 }

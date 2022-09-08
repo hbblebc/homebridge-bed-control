@@ -1,5 +1,5 @@
 import { TemperatureDisplayUnits } from 'homebridge/node_modules/hap-nodejs/dist/lib/definitions';
-import { PlatformAccessory, CharacteristicValue } from 'homebridge';
+import { PlatformAccessory, CharacteristicValue, Nullable } from 'homebridge';
 
 import { BedControlPlatform } from './platform';
 import {
@@ -218,12 +218,16 @@ export class BedAccessory {
   }
 
 
-  async getPrivacy(): Promise<CharacteristicValue> {
+  async getPrivacy(): Promise<Nullable<CharacteristicValue>> {
     const pauseMode = await this.snapi.bedPauseMode(this.bedId);
-    const isOn = (pauseMode === PauseMode_e.On);
+    if (pauseMode !== undefined) {
+      const isOn = (pauseMode === PauseMode_e.On);
 
-    this.platform.log.debug(`[${this.bedName}] Get Privacy Mode -> ${isOn}`);
-    return isOn;
+      this.platform.log.debug(`[${this.bedName}] Get Privacy Mode -> ${isOn}`);
+      return isOn;
+    } else {
+      return null;
+    }
   }
 
 
@@ -233,27 +237,39 @@ export class BedAccessory {
   }
 
 
-  async getNumber(side: BedSideKey_e): Promise<CharacteristicValue> {
+  async getNumber(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
     const data = await this.getBedStatus();
-    const number = data[side].sleepNumber;
-    this.platform.log.debug(`[${this.bedName}][${side}] Get Number -> ${number}`);
-    return number;
+    if (data !== undefined) {
+      const number = data[side].sleepNumber;
+      this.platform.log.debug(`[${this.bedName}][${side}] Get Number -> ${number}`);
+      return number;
+    } else {
+      return null;
+    }
   }
 
 
-  async getOccupancy(side: BedSideKey_e): Promise<CharacteristicValue> {
+  async getOccupancy(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
     const data = await this.getBedStatus();
-    const isInBed = data[side].isInBed ? 1 : 0;
-    this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
-    return isInBed;
+    if (data !== undefined) {
+      const isInBed = data[side].isInBed ? 1 : 0;
+      this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
+      return isInBed;
+    } else {
+      return null;
+    }
   }
 
 
-  async getAnyOccupancy(): Promise<CharacteristicValue> {
+  async getAnyOccupancy(): Promise<Nullable<CharacteristicValue>> {
     const data = await this.getBedStatus();
-    const isInBed = (data.leftSide.isInBed || data.rightSide.isInBed) ? 1 : 0;
-    this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
-    return isInBed;
+    if (data !== undefined) {
+      const isInBed = (data.leftSide.isInBed || data.rightSide.isInBed) ? 1 : 0;
+      this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
+      return isInBed;
+    } else {
+      return null;
+    }
   }
 
 
@@ -267,11 +283,15 @@ export class BedAccessory {
   }
 
 
-  async getResponsiveAir(side: BedSideKey_e): Promise<CharacteristicValue> {
+  async getResponsiveAir(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
     const data = await this.getResponsiveAirStatus();
-    const responsiveAirStatus = (side === BedSideKey_e.LeftSide) ? data.leftSideEnabled : data.rightSideEnabled;
-    this.platform.log.debug(`[${this.bedName}][${side}] Get Responsive Air -> ${responsiveAirStatus}`);
-    return responsiveAirStatus;
+    if (data !== undefined) {
+      const responsiveAirStatus = (side === BedSideKey_e.LeftSide) ? data.leftSideEnabled : data.rightSideEnabled;
+      this.platform.log.debug(`[${this.bedName}][${side}] Get Responsive Air -> ${responsiveAirStatus}`);
+      return responsiveAirStatus;
+    } else {
+      return null;
+    }
   }
 
 
@@ -281,17 +301,21 @@ export class BedAccessory {
   }
 
 
-  async getActuatorPosition(side: BedSideKey_e, actuator: Actuator_e): Promise<CharacteristicValue> {
+  async getActuatorPosition(side: BedSideKey_e, actuator: Actuator_e): Promise<Nullable<CharacteristicValue>> {
     const data = await this.getFoundationStatus();
-    let actuatorPosition: number;
-    switch (`${side}${actuator}`) {
-      case `${BedSideKey_e.LeftSide}${Actuator_e.Head}` : actuatorPosition = +data.fsLeftHeadPosition; break;
-      case `${BedSideKey_e.RightSide}${Actuator_e.Head}` : actuatorPosition = +data.fsRightHeadPosition; break;
-      case `${BedSideKey_e.LeftSide}${Actuator_e.Foot}` : actuatorPosition = +data.fsLeftFootPosition; break;
-      case `${BedSideKey_e.RightSide}${Actuator_e.Foot}` : actuatorPosition = +data.fsRightFootPosition; break;
+    if (data !== undefined) {
+      let actuatorPosition: number;
+      switch (`${side}${actuator}`) {
+        case `${BedSideKey_e.LeftSide}${Actuator_e.Head}` : actuatorPosition = +data.fsLeftHeadPosition; break;
+        case `${BedSideKey_e.RightSide}${Actuator_e.Head}` : actuatorPosition = +data.fsRightHeadPosition; break;
+        case `${BedSideKey_e.LeftSide}${Actuator_e.Foot}` : actuatorPosition = +data.fsLeftFootPosition; break;
+        case `${BedSideKey_e.RightSide}${Actuator_e.Foot}` : actuatorPosition = +data.fsRightFootPosition; break;
+      }
+      this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Get Position -> ${actuatorPosition!}`);
+      return actuatorPosition!;
+    } else {
+      return null;
     }
-    this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Get Position -> ${actuatorPosition!}`);
-    return actuatorPosition!;
   }
 
 
@@ -301,11 +325,15 @@ export class BedAccessory {
   }
 
 
-  async getOutlet(outlet: Outlets_e): Promise<CharacteristicValue> {
+  async getOutlet(outlet: Outlets_e): Promise<Nullable<CharacteristicValue>> {
     const data = await this.snapi.outletStatus(this.bedId, outlet);
-    const outletStatus = data.setting;
-    this.platform.log.debug(`[${this.bedName}][${Outlets_e[outlet]}] Get Outlet State -> ${outletStatus}`);
-    return outletStatus;
+    if (data !== undefined) {
+      const outletStatus = data.setting;
+      this.platform.log.debug(`[${this.bedName}][${Outlets_e[outlet]}] Get Outlet State -> ${outletStatus}`);
+      return outletStatus;
+    } else {
+      return null;
+    }
   }
 
 
@@ -330,7 +358,7 @@ export class BedAccessory {
   }
 
 
-  async getAnyOutlet(outletKey: string): Promise<CharacteristicValue> {
+  async getAnyOutlet(outletKey: string): Promise<Nullable<CharacteristicValue>> {
     const outlets = {
       leftSide: {
         outlet: Outlets_e.LeftPlug,
@@ -341,39 +369,57 @@ export class BedAccessory {
         light: Outlets_e.RightLight,
       },
     };
-    let leftStatus = Outlet_Setting_e.Off;
-    let rightStatus = Outlet_Setting_e.Off;
+    let outletStatus: Outlet_Setting_e | undefined;
 
     if (this.accessory.context.bedFeatures.leftSide[outletKey]) {
-      leftStatus = (await this.snapi.outletStatus(this.bedId, outlets.leftSide[outletKey])).setting;
+      const data = await this.snapi.outletStatus(this.bedId, outlets.leftSide[outletKey]);
+      if (data !== undefined) {
+        outletStatus = data.setting;
+      }
     }
     if (this.accessory.context.bedFeatures.rightSide[outletKey]) {
-      rightStatus = (await this.snapi.outletStatus(this.bedId, outlets.rightSide[outletKey])).setting;
+      const data = await this.snapi.outletStatus(this.bedId, outlets.rightSide[outletKey]);
+      if (data !== undefined) {
+        if (outletStatus !== undefined) {
+          outletStatus = outletStatus | data.setting;
+        } else {
+          outletStatus = data.setting;
+        }
+      }
     }
 
-    const outletStatus = leftStatus || rightStatus;
-    this.platform.log.debug(`[${this.bedName}][anySide] Get Outlet State -> ${outletStatus}`);
-    return outletStatus;
+    if (outletStatus!== undefined) {
+      this.platform.log.debug(`[${this.bedName}][anySide] Get Outlet State -> ${outletStatus}`);
+      return outletStatus;
+    } else {
+      return null;
+    }
   }
 
 
-  async getFootwarmingTimeRemaining(side: BedSideKey_e): Promise<CharacteristicValue> {
+  async getFootwarmingTimeRemaining(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
     const data = await this.getFootwarmingStatus();
-    const footwarmingTimeRemaining = side === BedSideKey_e.LeftSide ? data.footWarmingTimerLeft : data.footWarmingTimerRight;
-    this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming Timer Remaining -> ${footwarmingTimeRemaining}`);
-    return +(((footwarmingTimeRemaining - 32) * 5 / 9).toPrecision(1));
+    if (data !== undefined) {
+      const footwarmingTimeRemaining = side === BedSideKey_e.LeftSide ? data.footWarmingTimerLeft : data.footWarmingTimerRight;
+      this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming Timer Remaining -> ${footwarmingTimeRemaining}`);
+      return +(((footwarmingTimeRemaining - 32) * 5 / 9).toPrecision(1));
+    } else {
+      return null;
+    }
   }
 
 
   async setFootwarmingTimeRemaining(side: BedSideKey_e, value: number) {
     const data = await this.getFootwarmingStatus();
-    const temp = side === BedSideKey_e.LeftSide ? data.footWarmingStatusLeft : data.footWarmingStatusRight;
-    value = +(((value * 9 / 5) + 32).toFixed(0));
-    this.platform.log.debug(`[${this.bedName}][${side}] Set Footwarming Timer -> ${value} minutes`);
-    if (side === BedSideKey_e.LeftSide) {
-      this.snapi.footwarming(this.bedId, temp, undefined, value, undefined);
-    } else {
-      this.snapi.footwarming(this.bedId, undefined, temp, undefined, value);
+    if (data !== undefined) {
+      const temp = side === BedSideKey_e.LeftSide ? data.footWarmingStatusLeft : data.footWarmingStatusRight;
+      value = +(((value * 9 / 5) + 32).toFixed(0));
+      this.platform.log.debug(`[${this.bedName}][${side}] Set Footwarming Timer -> ${value} minutes`);
+      if (side === BedSideKey_e.LeftSide) {
+        this.snapi.footwarming(this.bedId, temp, undefined, value, undefined);
+      } else {
+        this.snapi.footwarming(this.bedId, undefined, temp, undefined, value);
+      }
     }
   }
 
@@ -391,16 +437,20 @@ export class BedAccessory {
   }
 
 
-  async getFootwarmingValue(side: BedSideKey_e): Promise<CharacteristicValue> {
+  async getFootwarmingValue(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
     const footwarmingStatus = await this.getFootwarming(side);
-    let value = 0;
-    switch(footwarmingStatus) {
-      case Footwarming_e.Low: value = 2; break;
-      case Footwarming_e.Med: value = 2; break;
-      case Footwarming_e.High: value = 1; break;
-      default: value = 0; break;
+    if (footwarmingStatus !== undefined && footwarmingStatus !== null) {
+      let value = 0;
+      switch(footwarmingStatus) {
+        case Footwarming_e.Low: value = 2; break;
+        case Footwarming_e.Med: value = 2; break;
+        case Footwarming_e.High: value = 1; break;
+        default: value = 0; break;
+      }
+      return value;
+    } else {
+      return null;
     }
-    return value;
   }
 
   async setFootwarming(side: BedSideKey_e, value: Footwarming_e) {
@@ -413,28 +463,32 @@ export class BedAccessory {
   }
 
 
-  async getFootwarming(side: BedSideKey_e): Promise<CharacteristicValue> {
+  async getFootwarming(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
     const data = await this.getFootwarmingStatus();
-    const footwarmingStatus = side === BedSideKey_e.LeftSide ? data.footWarmingStatusLeft : data.footWarmingStatusRight;
-    this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming State -> ${Footwarming_e[footwarmingStatus]}`);
-    return footwarmingStatus;
+    if (data !== undefined) {
+      const footwarmingStatus = side === BedSideKey_e.LeftSide ? data.footWarmingStatusLeft : data.footWarmingStatusRight;
+      this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming State -> ${Footwarming_e[footwarmingStatus]}`);
+      return footwarmingStatus;
+    } else {
+      return null;
+    }
   }
 
 
   getBedStatus() {
-    return this.batchRequests<BedStatusData>('_bed', () => this.snapi.bedStatus(this.bedId));
+    return this.batchRequests<BedStatusData | undefined>('_bed', () => this.snapi.bedStatus(this.bedId));
   }
 
   getResponsiveAirStatus() {
-    return this.batchRequests<ResponsiveAirStatusData>('_responsiveAir', () => this.snapi.responsiveAirStatus(this.bedId));
+    return this.batchRequests<ResponsiveAirStatusData | undefined>('_responsiveAir', () => this.snapi.responsiveAirStatus(this.bedId));
   }
 
   getFoundationStatus() {
-    return this.batchRequests<FoundationStatusData>('_foundation', () => this.snapi.foundationStatus(this.bedId));
+    return this.batchRequests<FoundationStatusData | undefined>('_foundation', () => this.snapi.foundationStatus(this.bedId));
   }
 
   getFootwarmingStatus() {
-    return this.batchRequests<FootwarmingStatusData>('_footwarming', () => this.snapi.footwarmingStatus(this.bedId));
+    return this.batchRequests<FootwarmingStatusData | undefined>('_footwarming', () => this.snapi.footwarmingStatus(this.bedId));
   }
 
   batchRequests<T>(_p: string, func: () => Promise<T>): Promise<T> {

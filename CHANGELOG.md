@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.0 (2022-09-08)
+
+### Changes
+
+- Improved error handling throughout the API and platform
+- Disable the API on caught errors to prevent flooding homebridge
+
 ## v1.1.2 (2022-09-07)
 
 ### Bug Fixes
