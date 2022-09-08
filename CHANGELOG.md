@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.2 (2022-09-07)
+
+### Bug Fixes
+
+- Removed hap-nodejs as a dependency, point to the included homebridge version
+
 ## v1.1.1 (2022-09-07)
 
 ### Bug Fixes

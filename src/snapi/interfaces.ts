@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-empty-interface */
-import { HeaterCooler, Lightbulb, OccupancySensor, Outlet, Switch } from 'hap-nodejs/dist/lib/definitions';
+import { HeaterCooler, Lightbulb, OccupancySensor, Outlet, Switch } from 'homebridge/node_modules/hap-nodejs/dist/lib/definitions';
 
 // login types
 export interface LoginData {
