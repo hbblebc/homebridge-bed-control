@@ -301,25 +301,26 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
 
 
   async poll() {
-    // Set initial privacy status
-    const beds = await this.snapi.familyStatus();
-    if (beds !== undefined) {
-      beds.forEach(async bed => {
-        const pauseMode = await this.snapi.bedPauseMode(bed.bedId) === PauseMode_e.On;
-        this.privacyModeEnabled[bed.bedId] = pauseMode;
-
-        const bedAccessory = this.accessories.find(a => a.context.bedStats.bedId === bed.bedId);
-        if (bedAccessory !== undefined) {
-          bedAccessory.getService('Privacy Switch')?.updateCharacteristic(this.Characteristic.On, pauseMode);
-          this.log.debug(`[Polling][${bedAccessory.context.bedStats.name}] Get Privacy Mode -> ${pauseMode}`);
-        }
-      });
-    } else {
-      this.log.warn('[Polling] No beds found');
-    }
-
     // Start polling routine
     if (this.updateInterval > 0) {
+
+      // Set initial privacy status
+      const beds = await this.snapi.familyStatus();
+      if (beds !== undefined) {
+        beds.forEach(async bed => {
+          const pauseMode = await this.snapi.bedPauseMode(bed.bedId) === PauseMode_e.On;
+          this.privacyModeEnabled[bed.bedId] = pauseMode;
+
+          const bedAccessory = this.accessories.find(a => a.context.bedStats.bedId === bed.bedId);
+          if (bedAccessory !== undefined) {
+            bedAccessory.getService('Privacy Switch')?.updateCharacteristic(this.Characteristic.On, pauseMode);
+            this.log.debug(`[Polling][${bedAccessory.context.bedStats.name}] Get Privacy Mode -> ${pauseMode}`);
+          }
+        });
+      } else {
+        this.log.warn('[Polling] No beds found');
+      }
+
       let disabledMessage = false;
 
       const pollInterval = setInterval(async () => {
