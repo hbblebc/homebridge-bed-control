@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.2 (2022-09-18)
+
+### Bug Fixes
+
+- Set initial polling privacy mode check to only run if polling is enabled
+
 ## v1.2.1 (2022-09-18)
 
 ### Bug Fixes
