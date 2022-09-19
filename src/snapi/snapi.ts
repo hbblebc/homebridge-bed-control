@@ -90,40 +90,46 @@ class snapi {
     private readonly username: string,
     private readonly password: string,
     public readonly log?: Logger,
-  ) {}
-
-
-  process_errors(e: Error | AxiosError) {
-    if (axios.isAxiosError(e)) {
-      if (this.log) {
-        this.log.error('[snapi]', e.response?.status, e.response?.statusText);
-        this.log.error('[snapi] Disabling API. No further requests will be attempted');
-      } else {
-        console.error('[snapi]', e.response?.status, e.response?.statusText);
-        console.error('[snapi] Disabling API. No further requests will be attempted');
-      }
+  ) {
+    if (log === undefined) {
+      this.log = console;
     }
-    this.apiDisabled = true;
+  }
+
+
+  print_errors(e: Error | AxiosError, caller: string) {
+    if (axios.isAxiosError(e)) {
+      this.log!.debug(`[snapi][${caller}][API Error]`, e.response?.status, e.response?.statusText);
+    }
   }
 
 
   async retry<T>(func: () => Promise<T>, count = 0): Promise<T | undefined> {
     if (this.apiDisabled || count === 2) {
+      this.log!.debug('[snapi][retry] Reattempt limit reached.');
       return undefined;
     } else {
       try {
         return await func();
       } catch (_e) {
         const e: Error = _e as Error;
+        this.print_errors(e, 'retry');
         if (axios.isAxiosError(e)) {
           if (e.response?.statusText === 'Unauthorized') {
             if (count === 0) {
+              this.log!.debug('[snapi][retry] Login expired. Attempting re-authentication.');
               await this.batchLogin();
             }
+            this.log!.debug('[snapi][retry] Reattempting failed request, attempt #:', count + 2);
             return await this.retry(func, count + 1);
+          } else if (e.response?.statusText === 'Not Found') {
+            this.log!.debug('[snapi][retry] Function returned 404 from API.');
+            throw e;
           }
         } else {
-          this.process_errors(e);
+          this.print_errors(e, 'retry');
+          this.log!.error('[snapi][retry] Disabling API. No further requests will be attempted');
+          this.apiDisabled = true;
         }
       }
     }
@@ -140,15 +146,14 @@ class snapi {
       this.userId = data.userId;
       this.key = data.key;
 
-      if (this.log) {
-        this.log.debug('[snapi][login]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][login]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][login]', JSON.stringify(data, null, 2));
 
       return data;
-    } catch (e) {
-      this.process_errors(e as Error | AxiosError);
+    } catch (_e) {
+      const e: Error = _e as Error;
+      this.print_errors(e, 'login');
+      this.log!.error('[snapi] Disabling API. No further requests will be attempted');
+      this.apiDisabled = true;
     }
   }
 
@@ -174,11 +179,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][registration]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][registration]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][registration]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -200,11 +201,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][familyStatus', JSON.stringify(data, null, 2));
       return data.beds;
     }
   }
@@ -226,11 +223,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][sleeper]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -252,11 +245,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][bed]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][bed]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][bed]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -278,11 +267,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][bedStatus]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -305,11 +290,7 @@ class snapi {
       const { data } = res;
       const pauseMode = data.pauseMode;
 
-      if (this.log) {
-        this.log.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][bedPauseMode]', JSON.stringify(data, null, 2));
       return pauseMode;
     }
   }
@@ -332,11 +313,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][setBedPauseMode]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -370,11 +347,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][sleepNumber]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -396,11 +369,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][responsiveAirStatus]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -425,11 +394,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][responsiveAir]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -452,11 +417,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][forceIdle]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -478,11 +439,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][pumpStatus]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -508,11 +465,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][preset]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][preset]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][preset]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -547,11 +500,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][adjust]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -573,11 +522,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][foundationStatus]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -600,11 +545,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][outletStatus]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -628,11 +569,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][outlet]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -659,11 +596,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][motion]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][motion]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][motion]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -685,11 +618,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][underbedLightStatus]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -713,11 +642,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][underbedLight]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -739,11 +664,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][footwarmingStatus]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -770,11 +691,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][footWarming]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -802,11 +719,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][adjustment]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -833,11 +746,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][sleepData]', JSON.stringify(data, null, 2));
       return data;
     }
   }
@@ -864,11 +773,7 @@ class snapi {
     if (res !== undefined) {
       const { data } = res;
 
-      if (this.log) {
-        this.log.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
-      } else {
-        console.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
-      }
+      this.log!.debug('[snapi][sleepSliceData]', JSON.stringify(data, null, 2));
       return data;
     }
   }

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.1 (2022-09-18)
+
+### Bug Fixes
+
+- Fixed bug in API that was creating phantom foundation controls
+
 ## v1.2.0 (2022-09-08)
 
 ### Changes
