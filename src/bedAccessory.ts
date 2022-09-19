@@ -15,6 +15,7 @@ import {
   PauseMode_e,
   ResponsiveAirStatusData,
   Services,
+  PumpStatusData,
 } from './snapi/interfaces';
 import Snapi from './snapi/snapi';
 
@@ -26,6 +27,7 @@ export class BedAccessory {
 
   // used in batchRequests
   private _bed?: Promise<BedStatusData> = undefined;
+  private _pump?: Promise<BedStatusData> = undefined;
   private _responsiveAir?: Promise<ResponsiveAirStatusData> = undefined;
   private _foundation?: Promise<FoundationStatusData> = undefined;
   private _footwarming?: Promise<FootwarmingStatusData> = undefined;
@@ -215,6 +217,8 @@ export class BedAccessory {
   async setPrivacy(value: CharacteristicValue) {
     this.platform.log.debug(`[${this.bedName}] Set Privacy Mode -> ${value}`);
     this.snapi.setBedPauseMode(this.bedId, value ? PauseMode_e.On : PauseMode_e.Off);
+
+    this.platform.privacyModeEnabled[this.bedId] = value;
   }
 
 
@@ -222,6 +226,8 @@ export class BedAccessory {
     const pauseMode = await this.snapi.bedPauseMode(this.bedId);
     if (pauseMode !== undefined) {
       const isOn = (pauseMode === PauseMode_e.On);
+
+      this.platform.privacyModeEnabled[this.bedId] = isOn;
 
       this.platform.log.debug(`[${this.bedName}] Get Privacy Mode -> ${isOn}`);
       return isOn;
@@ -238,9 +244,9 @@ export class BedAccessory {
 
 
   async getNumber(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
-    const data = await this.getBedStatus();
+    const data = await this.getPumpStatus();
     if (data !== undefined) {
-      const number = data[side].sleepNumber;
+      const number = side === BedSideKey_e.LeftSide ? data.leftSideSleepNumber : data.rightSideSleepNumber;
       this.platform.log.debug(`[${this.bedName}][${side}] Get Number -> ${number}`);
       return number;
     } else {
@@ -250,24 +256,34 @@ export class BedAccessory {
 
 
   async getOccupancy(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
-    const data = await this.getBedStatus();
-    if (data !== undefined) {
-      const isInBed = data[side].isInBed ? 1 : 0;
-      this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
-      return isInBed;
+    if (!this.platform.privacyModeEnabled[this.bedId]) {
+      const data = await this.getBedStatus();
+      if (data !== undefined) {
+        const isInBed = data[side].isInBed ? 1 : 0;
+        this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
+        return isInBed;
+      } else {
+        return null;
+      }
     } else {
+      this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
       return null;
     }
   }
 
 
   async getAnyOccupancy(): Promise<Nullable<CharacteristicValue>> {
-    const data = await this.getBedStatus();
-    if (data !== undefined) {
-      const isInBed = (data.leftSide.isInBed || data.rightSide.isInBed) ? 1 : 0;
-      this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
-      return isInBed;
+    if (!this.platform.privacyModeEnabled[this.bedId]) {
+      const data = await this.getBedStatus();
+      if (data !== undefined) {
+        const isInBed = (data.leftSide.isInBed || data.rightSide.isInBed) ? 1 : 0;
+        this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
+        return isInBed;
+      } else {
+        return null;
+      }
     } else {
+      this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
       return null;
     }
   }
@@ -477,6 +493,10 @@ export class BedAccessory {
 
   getBedStatus() {
     return this.batchRequests<BedStatusData | undefined>('_bed', () => this.snapi.bedStatus(this.bedId));
+  }
+
+  getPumpStatus() {
+    return this.batchRequests<PumpStatusData | undefined>('_pump', () => this.snapi.pumpStatus(this.bedId));
   }
 
   getResponsiveAirStatus() {

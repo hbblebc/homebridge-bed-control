@@ -7,6 +7,15 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 - Fixed bug in API that was creating phantom foundation controls
+- Updated sleep number GET function to use API that updates even when privacy mode is enabled
+- Updated polling routine to disable if all beds have privacy mode enabled, or to skip individual
+  beds with privacy mode enabled. 
+  - When privacy mode is enabled, the API request returns whatever the last state of the bed was
+    before enabling privacy mode. Skipping the polling updates will prevent HomeKit from getting
+    confused on the current state of the bed.
+  - Enabling privacy mode will also cause your occupancy sensors to report "Not responding". If
+    you keep privacy mode enabled all the time, I recommend disabling polling and hiding the 
+    occupancy sensors from your device list using the platform settings. 
 
 ## v1.2.0 (2022-09-08)
 

@@ -2,7 +2,7 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import Snapi from './snapi/snapi';
-import { BedFeatures, BedSideKey_e, BedState, Outlets_e } from './snapi/interfaces';
+import { BedFeatures, BedSideKey_e, BedState, Outlets_e, PauseMode_e } from './snapi/interfaces';
 import { BedAccessory } from './bedAccessory';
 
 /**
@@ -25,6 +25,8 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
   public platform: string;
   public ignoreList: string[];
   public snapi: Snapi;
+
+  public privacyModeEnabled = {};
 
   constructor(
     public readonly log: Logger,
@@ -54,10 +56,10 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     // Dynamic Platform plugins should only register new accessories after this event was fired,
     // in order to ensure they weren't added to homebridge already. This event can also be used
     // to start discovery of new accessories.
-    this.api.on('didFinishLaunching', () => {
+    this.api.on('didFinishLaunching', async () => {
       log.debug('Executed didFinishLaunching callback');
       // run the method to discover / register your devices as accessories
-      this.discoverDevices();
+      await this.discoverDevices();
       this.poll();
     });
   }
@@ -139,6 +141,9 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
         }
 
         const bedIgnoreList = this.ignoreList.filter(s => s.split('.')[0] === bed.bedId);
+
+        // Add entry in privacyModeEnabled
+        this.privacyModeEnabled[bed.bedId] = false;
 
         // Re-set up bed if ignoreList for bed changed
         if (existingBed) {
@@ -296,38 +301,89 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
 
 
   async poll() {
+    // Set initial privacy status
+    const beds = await this.snapi.familyStatus();
+    if (beds !== undefined) {
+      beds.forEach(async bed => {
+        const pauseMode = await this.snapi.bedPauseMode(bed.bedId) === PauseMode_e.On;
+        this.privacyModeEnabled[bed.bedId] = pauseMode;
+
+        const bedAccessory = this.accessories.find(a => a.context.bedStats.bedId === bed.bedId);
+        if (bedAccessory !== undefined) {
+          bedAccessory.getService('Privacy Switch')?.updateCharacteristic(this.Characteristic.On, pauseMode);
+          this.log.debug(`[Polling][${bedAccessory.context.bedStats.name}] Get Privacy Mode -> ${pauseMode}`);
+        }
+      });
+    } else {
+      this.log.warn('[Polling] No beds found');
+    }
+
+    // Start polling routine
     if (this.updateInterval > 0) {
+      let disabledMessage = false;
+
       const pollInterval = setInterval(async () => {
-        const beds = await this.snapi.familyStatus();
-        if (beds !== undefined) {
-          beds.forEach(bed => {
-            const bedAccessory = this.accessories.find(a => a.context.bedStats.bedId === bed.bedId);
-            if (bedAccessory) {
-              const name = bedAccessory.context.bedStats.name;
-              [BedSideKey_e.LeftSide, BedSideKey_e.RightSide].forEach(side => {
-                if (bedAccessory.context.bedFeatures[side].occupancySensor) {
-                  this.log.debug(`[${name}][${side}] Get Occupancy -> ${bed[side].isInBed}`);
-                  bedAccessory.getService(`${side} Occupancy Sensor`)!
-                    .updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
-                }
+        // Check if all beds have privacy mode enabled
+        const allBedsPrivate = Object.values(this.privacyModeEnabled).reduce((prev, cur) => prev && cur, true);
 
-                if (bedAccessory.context.bedFeatures[side].numberControl) {
-                  this.log.debug(`[${name}][${side}] Get Number -> ${bed[side].sleepNumber}`);
-                  bedAccessory.getService(`${side} Number Control`)!
-                    .updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
-                }
-              });
+        if (!allBedsPrivate) {
+          if (disabledMessage) {
+            disabledMessage = false;
+          }
 
-              if (bedAccessory.context.bedFeatures.anySide.occupancySensor) {
-                this.log.debug(`[${name}][anySide] Get Occupancy -> ${bed.leftSide.isInBed || bed.rightSide.isInBed}`);
-                bedAccessory.getService('anySide Occupancy Sensor')!
-                  .updateCharacteristic(this.Characteristic.OccupancyDetected, bed.leftSide.isInBed || bed.rightSide.isInBed);
+          const beds = await this.snapi.familyStatus();
+          if (beds !== undefined) {
+            beds.forEach(bed => {
+              const bedAccessory = this.accessories.find(a => a.context.bedStats.bedId === bed.bedId);
+              if (bedAccessory) {
+                const name = bedAccessory.context.bedStats.name;
+
+                if (!this.privacyModeEnabled[bed.bedId]) {
+                  [BedSideKey_e.LeftSide, BedSideKey_e.RightSide].forEach(side => {
+                    if (bed[side].alertDetailedMessage === 'Data Out of Sync') {
+                      this.log.warn(`[Polling][${name}][${side}] Polling data out of sync. Devices not updated`);
+                      return;
+                    } else {
+                      if (bedAccessory.context.bedFeatures[side].occupancySensor) {
+                        this.log.debug(`[Polling][${name}][${side}] Get Occupancy -> ${bed[side].isInBed}`);
+                        bedAccessory.getService(`${side} Occupancy Sensor`)!
+                          .updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
+                      }
+
+                      if (bedAccessory.context.bedFeatures[side].numberControl) {
+                        this.log.debug(`[Polling][${name}][${side}] Get Number -> ${bed[side].sleepNumber}`);
+                        bedAccessory.getService(`${side} Number Control`)!
+                          .updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
+                      }
+                    }
+                  });
+                  if (bedAccessory.context.bedFeatures.anySide.occupancySensor) {
+                    if (bed.leftSide.alertDetailedMessage !== 'Data Out of Sync' &&
+                        bed.rightSide.alertDetailedMessage !== 'Data Out of Sync') {
+                      this.log.debug(`[Polling][${name}][anySide] Get Occupancy -> ${bed.leftSide.isInBed || bed.rightSide.isInBed}`);
+                      bedAccessory.getService('anySide Occupancy Sensor')!
+                        .updateCharacteristic(this.Characteristic.OccupancyDetected, bed.leftSide.isInBed || bed.rightSide.isInBed);
+                    } else {
+                      this.log.warn(`[Polling][${name}][anySide] Polling data out of sync. Devices not updated`);
+                    }
+                  }
+                } else {
+                  this.log.debug(`[Polling][${name}] Privacy mode enabled, skipping polling updates`);
+                }
               }
-            }
-          });
+            });
+          } else {
+            this.log.error('[Polling] Failed to connect to the API. Disabling polling function...');
+            clearInterval(pollInterval);
+          }
         } else {
-          this.log.error('Failed to connect to the API. Disabling polling function...');
-          clearInterval(pollInterval);
+          if (!disabledMessage) {
+            this.log.warn('[Polling] All beds have privacy mode enabled. Polling skipped to reduce unneccessary API requests.',
+              'Updating privacy mode through the device application will not re-enable polling here until the privacy value is',
+              'synced back to homekit by opening the Home app and viewing the privacy switch device. Modifying privacy state',
+              'through homekit will immediately reflect here.');
+            disabledMessage = true;
+          }
         }
       }, this.updateInterval);
     }
