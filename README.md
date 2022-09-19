@@ -50,6 +50,8 @@ The platform supports the following HomeKit devices:
 
 All the controls for a single bed will be grouped inside of a single device matching the name of the bed. If you would rather have separate controls, the HomeKit app will let you split the device into separate controls
 
+### Privacy Mode
+
 When privacy mode is enabled, the API requests that provide occupancy status will be non-functional. As a result, when privacy mode is enabled for a bed, polling will be disabled and occupancy sensors will be unresponsive. If you plan on keeping privacy mode enabled permenantly, I recommend keeping polling disabled and hiding the occupancy sensor devices from the accessory list using the platform settings.
 
 # Issues/Future Work
