@@ -26,14 +26,13 @@ export class BedAccessory {
   protected bedName: string;
 
   // used in batchRequests
-  private _bed?: Promise<BedStatusData> = undefined;
-  private _pump?: Promise<BedStatusData> = undefined;
-  private _responsiveAir?: Promise<ResponsiveAirStatusData> = undefined;
-  private _foundation?: Promise<FoundationStatusData> = undefined;
-  private _footwarming?: Promise<FootwarmingStatusData> = undefined;
+  private batched_requests = {};
+  private setSleepNumber = {};
+  private adjustActuator = {
+    [BedSideKey_e.LeftSide]: {},
+    [BedSideKey_e.RightSide]: {},
+  };
 
-  private setSleepNumber: (...args: [string, BedSide_e, number]) => void;
-  private adjustActuator: (...args: [string, BedSide_e, number, Actuator_e]) => void;
 
   public services: Services = {};
 
@@ -44,8 +43,12 @@ export class BedAccessory {
   ) {
     this.bedId = accessory.context.bedStats.bedId;
     this.bedName = accessory.context.bedStats.name;
-    this.setSleepNumber = this.debounce(this.snapi.sleepNumber, this.accessory.context.sendDelay);
-    this.adjustActuator = this.debounce(this.snapi.adjust, this.accessory.context.sendDelay);
+    this.setSleepNumber[BedSideKey_e.LeftSide] = this.debounce(this.snapi.sleepNumber, this.accessory.context.sendDelay);
+    this.setSleepNumber[BedSideKey_e.RightSide] = this.debounce(this.snapi.sleepNumber, this.accessory.context.sendDelay);
+    this.adjustActuator[BedSideKey_e.LeftSide][Actuator_e.Head] = this.debounce(this.snapi.adjust, this.accessory.context.sendDelay);
+    this.adjustActuator[BedSideKey_e.LeftSide][Actuator_e.Foot] = this.debounce(this.snapi.adjust, this.accessory.context.sendDelay);
+    this.adjustActuator[BedSideKey_e.RightSide][Actuator_e.Head] = this.debounce(this.snapi.adjust, this.accessory.context.sendDelay);
+    this.adjustActuator[BedSideKey_e.RightSide][Actuator_e.Foot] = this.debounce(this.snapi.adjust, this.accessory.context.sendDelay);
 
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.bedFeatures.Manufacturer)
@@ -239,7 +242,7 @@ export class BedAccessory {
 
   async setNumber(side: BedSideKey_e, value: number) {
     this.platform.log.debug(`[${this.bedName}][${side}] Set Number -> ${value}`);
-    this.setSleepNumber(this.bedId, BedSide_e[side], value);
+    this.setSleepNumber[side](this.bedId, BedSide_e[side], value);
   }
 
 
@@ -313,7 +316,7 @@ export class BedAccessory {
 
   async setActuatorPosition(side: BedSideKey_e, actuator: Actuator_e, value: number) {
     this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Set Position -> ${value}`);
-    this.adjustActuator(this.bedId, BedSide_e[side], value, actuator);
+    this.adjustActuator[side][actuator](this.bedId, BedSide_e[side], value, actuator);
   }
 
 
@@ -512,17 +515,17 @@ export class BedAccessory {
   }
 
   batchRequests<T>(_p: string, func: () => Promise<T>): Promise<T> {
-    if (this[_p] !== undefined) {
-      return this[_p];
+    if (this.batched_requests[_p] !== undefined) {
+      return this.batched_requests[_p];
     }
-    this[_p] = func();
-    this[_p]!.then(() => {
-      this[_p] = undefined;
+    this.batched_requests[_p] =func();
+    this.batched_requests[_p]!.then(() => {
+      this.batched_requests[_p] = undefined;
     },
     () => {
-      this[_p] = undefined;
+      this.batched_requests[_p] = undefined;
     });
-    return this[_p];
+    return this.batched_requests[_p];
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
