@@ -1,5 +1,5 @@
 import { TemperatureDisplayUnits } from 'homebridge/node_modules/hap-nodejs/dist/lib/definitions';
-import { PlatformAccessory, CharacteristicValue, Nullable } from 'homebridge';
+import { PlatformAccessory, CharacteristicValue, HAPStatus } from 'homebridge';
 
 import { BedControlPlatform } from './platform';
 import {
@@ -225,7 +225,7 @@ export class BedAccessory {
   }
 
 
-  async getPrivacy(): Promise<Nullable<CharacteristicValue>> {
+  async getPrivacy(): Promise<CharacteristicValue> {
     const pauseMode = await this.snapi.bedPauseMode(this.bedId);
     if (pauseMode !== undefined) {
       const isOn = (pauseMode === PauseMode_e.On);
@@ -235,7 +235,7 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}] Get Privacy Mode -> ${isOn}`);
       return isOn;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
@@ -246,19 +246,19 @@ export class BedAccessory {
   }
 
 
-  async getNumber(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
+  async getNumber(side: BedSideKey_e): Promise<CharacteristicValue> {
     const data = await this.getPumpStatus();
     if (data !== undefined) {
       const number = side === BedSideKey_e.LeftSide ? data.leftSideSleepNumber : data.rightSideSleepNumber;
       this.platform.log.debug(`[${this.bedName}][${side}] Get Number -> ${number}`);
       return number;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
 
-  async getOccupancy(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
+  async getOccupancy(side: BedSideKey_e): Promise<CharacteristicValue> {
     if (!this.platform.privacyModeEnabled[this.bedId]) {
       const data = await this.getBedStatus();
       if (data !== undefined) {
@@ -266,16 +266,16 @@ export class BedAccessory {
         this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
         return isInBed;
       } else {
-        return null;
+        throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
-      return null;
+      throw HAPStatus.NOT_ALLOWED_IN_CURRENT_STATE;
     }
   }
 
 
-  async getAnyOccupancy(): Promise<Nullable<CharacteristicValue>> {
+  async getAnyOccupancy(): Promise<CharacteristicValue> {
     if (!this.platform.privacyModeEnabled[this.bedId]) {
       const data = await this.getBedStatus();
       if (data !== undefined) {
@@ -283,11 +283,11 @@ export class BedAccessory {
         this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
         return isInBed;
       } else {
-        return null;
+        throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
-      return null;
+      throw HAPStatus.NOT_ALLOWED_IN_CURRENT_STATE;
     }
   }
 
@@ -302,14 +302,14 @@ export class BedAccessory {
   }
 
 
-  async getResponsiveAir(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
+  async getResponsiveAir(side: BedSideKey_e): Promise<CharacteristicValue> {
     const data = await this.getResponsiveAirStatus();
     if (data !== undefined) {
       const responsiveAirStatus = (side === BedSideKey_e.LeftSide) ? data.leftSideEnabled : data.rightSideEnabled;
       this.platform.log.debug(`[${this.bedName}][${side}] Get Responsive Air -> ${responsiveAirStatus}`);
       return responsiveAirStatus;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
@@ -320,7 +320,7 @@ export class BedAccessory {
   }
 
 
-  async getActuatorPosition(side: BedSideKey_e, actuator: Actuator_e): Promise<Nullable<CharacteristicValue>> {
+  async getActuatorPosition(side: BedSideKey_e, actuator: Actuator_e): Promise<CharacteristicValue> {
     const data = await this.getFoundationStatus();
     if (data !== undefined) {
       let actuatorPosition: number;
@@ -333,7 +333,7 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Get Position -> ${actuatorPosition!}`);
       return actuatorPosition!;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
@@ -344,14 +344,14 @@ export class BedAccessory {
   }
 
 
-  async getOutlet(outlet: Outlets_e): Promise<Nullable<CharacteristicValue>> {
+  async getOutlet(outlet: Outlets_e): Promise<CharacteristicValue> {
     const data = await this.snapi.outletStatus(this.bedId, outlet);
     if (data !== undefined) {
       const outletStatus = data.setting;
       this.platform.log.debug(`[${this.bedName}][${Outlets_e[outlet]}] Get Outlet State -> ${outletStatus}`);
       return outletStatus;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
@@ -377,7 +377,7 @@ export class BedAccessory {
   }
 
 
-  async getAnyOutlet(outletKey: string): Promise<Nullable<CharacteristicValue>> {
+  async getAnyOutlet(outletKey: string): Promise<CharacteristicValue> {
     const outlets = {
       leftSide: {
         outlet: Outlets_e.LeftPlug,
@@ -411,19 +411,19 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][anySide] Get Outlet State -> ${outletStatus}`);
       return outletStatus;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
 
-  async getFootwarmingTimeRemaining(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
+  async getFootwarmingTimeRemaining(side: BedSideKey_e): Promise<CharacteristicValue> {
     const data = await this.getFootwarmingStatus();
     if (data !== undefined) {
       const footwarmingTimeRemaining = side === BedSideKey_e.LeftSide ? data.footWarmingTimerLeft : data.footWarmingTimerRight;
       this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming Timer Remaining -> ${footwarmingTimeRemaining}`);
       return +(((footwarmingTimeRemaining - 32) * 5 / 9).toPrecision(1));
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
@@ -456,7 +456,7 @@ export class BedAccessory {
   }
 
 
-  async getFootwarmingValue(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
+  async getFootwarmingValue(side: BedSideKey_e): Promise<CharacteristicValue> {
     const footwarmingStatus = await this.getFootwarming(side);
     if (footwarmingStatus !== undefined && footwarmingStatus !== null) {
       let value = 0;
@@ -468,7 +468,7 @@ export class BedAccessory {
       }
       return value;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 
@@ -482,14 +482,14 @@ export class BedAccessory {
   }
 
 
-  async getFootwarming(side: BedSideKey_e): Promise<Nullable<CharacteristicValue>> {
+  async getFootwarming(side: BedSideKey_e): Promise<CharacteristicValue> {
     const data = await this.getFootwarmingStatus();
     if (data !== undefined) {
       const footwarmingStatus = side === BedSideKey_e.LeftSide ? data.footWarmingStatusLeft : data.footWarmingStatusRight;
       this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming State -> ${Footwarming_e[footwarmingStatus]}`);
       return footwarmingStatus;
     } else {
-      return null;
+      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
     }
   }
 

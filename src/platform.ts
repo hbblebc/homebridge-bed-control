@@ -322,6 +322,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
       }
 
       let disabledMessage = false;
+      const outOfSyncMessages = {};
 
       const pollInterval = setInterval(async () => {
         // Check if all beds have privacy mode enabled
@@ -342,9 +343,31 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                 if (!this.privacyModeEnabled[bed.bedId]) {
                   [BedSideKey_e.LeftSide, BedSideKey_e.RightSide].forEach(side => {
                     if (bed[side].alertDetailedMessage === 'Data Out of Sync') {
-                      this.log.warn(`[Polling][${name}][${side}] Polling data out of sync. Devices not updated`);
+                      if (outOfSyncMessages[bed.bedId]?.[side] === true) {
+                        this.log.debug(`[Polling][${name}][${side}] Polling data out of sync. Devices not updated`);
+                      } else {
+                        this.log.warn(`[Polling][${name}][${side}] Polling data out of sync. Devices not updated`);
+                        outOfSyncMessages[bed.bedId] = {[side]: true};
+                      }
+
+                      if (bedAccessory.context.bedFeatures[side].occupancySensor) {
+                        bedAccessory.getService(`${side} Occupancy Sensor`)!
+                          .getCharacteristic(this.Characteristic.OccupancyDetected)!
+                          .setValue(new Error('Polling data out of sync'));
+                      }
+
+                      if (bedAccessory.context.bedFeatures[side].numberControl) {
+                        bedAccessory.getService(`${side} Number Control`)!
+                          .getCharacteristic(this.Characteristic.Brightness)!
+                          .setValue(new Error('Polling data out of sync'));
+                      }
+
                       return;
                     } else {
+                      if (outOfSyncMessages[bed.bedId]?.[side] === true) {
+                        outOfSyncMessages[bed.bedId] = {[side]: false};
+                      }
+
                       if (bedAccessory.context.bedFeatures[side].occupancySensor) {
                         this.log.debug(`[Polling][${name}][${side}] Get Occupancy -> ${bed[side].isInBed}`);
                         bedAccessory.getService(`${side} Occupancy Sensor`)!
@@ -359,13 +382,28 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                     }
                   });
                   if (bedAccessory.context.bedFeatures.anySide.occupancySensor) {
-                    if (bed.leftSide.alertDetailedMessage !== 'Data Out of Sync' &&
-                        bed.rightSide.alertDetailedMessage !== 'Data Out of Sync') {
+                    if (bed.leftSide.alertDetailedMessage === 'Data Out of Sync' ||
+                        bed.rightSide.alertDetailedMessage === 'Data Out of Sync') {
+
+                      if (outOfSyncMessages[bed.bedId]?.anySide === true) {
+                        this.log.debug(`[Polling][${name}][anySide] Polling data out of sync. Devices not updated`);
+                      } else {
+                        this.log.warn(`[Polling][${name}][anySide] Polling data out of sync. Devices not updated`);
+                        outOfSyncMessages[bed.bedId] = {anySide: true};
+                      }
+
+                      bedAccessory.getService('anySide Occupancy Sensor')!
+                        .getCharacteristic(this.Characteristic.OccupancyDetected)!
+                        .setValue(new Error('Polling data out of sync'));
+                    } else {
+
+                      if (outOfSyncMessages[bed.bedId]?.anySide === true) {
+                        outOfSyncMessages[bed.bedId] = {anySide: false};
+                      }
+
                       this.log.debug(`[Polling][${name}][anySide] Get Occupancy -> ${bed.leftSide.isInBed || bed.rightSide.isInBed}`);
                       bedAccessory.getService('anySide Occupancy Sensor')!
                         .updateCharacteristic(this.Characteristic.OccupancyDetected, bed.leftSide.isInBed || bed.rightSide.isInBed);
-                    } else {
-                      this.log.warn(`[Polling][${name}][anySide] Polling data out of sync. Devices not updated`);
                     }
                   }
                 } else {
