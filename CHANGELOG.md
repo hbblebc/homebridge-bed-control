@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.3 (2022-09-24)
+
+### Bug Fixes
+
+- If you controlled both sides of the bed at the same time (like in a routine or trigger of some sort), 
+  the debounce function was stepping on itself and making one of the sides not update. Each side now 
+  uses its own debounced function, so they should both respond now.
+- If you have polling enabled and one of the sides got out of sync, the logs were happy to tell you about it.
+  They will be a bit calmer now. Turn on debug mode if you preferred the previous experience.
+- Updated all the device characteristics to properly throw an error if they don't get data back from the 
+  API like they are expecting. 
+
 ## v1.2.2 (2022-09-18)
 
 ### Bug Fixes
