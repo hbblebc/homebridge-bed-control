@@ -325,10 +325,10 @@ export class BedAccessory {
     if (data !== undefined) {
       let actuatorPosition: number;
       switch (`${side}${actuator}`) {
-        case `${BedSideKey_e.LeftSide}${Actuator_e.Head}` : actuatorPosition = +data.fsLeftHeadPosition; break;
-        case `${BedSideKey_e.RightSide}${Actuator_e.Head}` : actuatorPosition = +data.fsRightHeadPosition; break;
-        case `${BedSideKey_e.LeftSide}${Actuator_e.Foot}` : actuatorPosition = +data.fsLeftFootPosition; break;
-        case `${BedSideKey_e.RightSide}${Actuator_e.Foot}` : actuatorPosition = +data.fsRightFootPosition; break;
+        case `${BedSideKey_e.LeftSide}${Actuator_e.Head}`  : actuatorPosition = parseInt(data.fsLeftHeadPosition, 16); break;
+        case `${BedSideKey_e.RightSide}${Actuator_e.Head}` : actuatorPosition = parseInt(data.fsRightHeadPosition, 16); break;
+        case `${BedSideKey_e.LeftSide}${Actuator_e.Foot}`  : actuatorPosition = parseInt(data.fsLeftFootPosition, 16); break;
+        case `${BedSideKey_e.RightSide}${Actuator_e.Foot}` : actuatorPosition = parseInt(data.fsRightFootPosition, 16); break;
       }
       this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Get Position -> ${actuatorPosition!}`);
       return actuatorPosition!;
