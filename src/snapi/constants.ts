@@ -1,4 +1,4 @@
-const rootURL = 'https://api.sleepiq.sleepnumber.com/rest/';
+const rootURL = 'https://prod-api.sleepiq.sleepnumber.com/rest/';
 
 export const loginURL = `${rootURL}login`;
 export const registrationURL = `${rootURL}registration`;

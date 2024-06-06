@@ -14,7 +14,7 @@
 </span>
 
 ## [HomeBridge](https://github.com/nfarina/homebridge) plugin for compatible smart bed platforms
-Copyright © 2022 hbblebc. All rights reserved.
+Copyright © 2024 hbblebc. All rights reserved.
 
 <i>This is an independent plugin and not affiliated with any bed platform company or manufacturer. If you have an issue with the plugin, file a ticket here. The bed companies will not provide support for any problems encountered as a result of using this plugin. Use at your own risk.</i>
 
@@ -55,4 +55,5 @@ All the controls for a single bed will be grouped inside of a single device matc
 When privacy mode is enabled, the API requests that provide occupancy status will be non-functional. As a result, when privacy mode is enabled for a bed, polling will be disabled and occupancy sensors will be unresponsive. If you plan on keeping privacy mode enabled permenantly, I recommend keeping polling disabled and hiding the occupancy sensor devices from the accessory list using the platform settings.
 
 # Issues/Future Work
+
 None for now

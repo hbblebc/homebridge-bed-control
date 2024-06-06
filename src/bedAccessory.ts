@@ -1,4 +1,4 @@
-import { TemperatureDisplayUnits } from 'homebridge/node_modules/hap-nodejs/dist/lib/definitions';
+import { TemperatureDisplayUnits } from 'hap-nodejs/dist/lib/definitions';
 import { PlatformAccessory, CharacteristicValue, HAPStatus } from 'homebridge';
 
 import { BedControlPlatform } from './platform';

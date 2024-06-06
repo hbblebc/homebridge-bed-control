@@ -74,7 +74,7 @@ import {
 } from './interfaces';
 
 const jar = new CookieJar();
-const client = wrapper(axios.create({ jar }));
+const client = wrapper(axios.create({ jar, withCredentials: true }));
 
 class snapi {
 
@@ -89,7 +89,7 @@ class snapi {
   constructor(
     private readonly username: string,
     private readonly password: string,
-    public readonly log?: Logger,
+    public readonly log?: Logger | Console,
   ) {
     if (log === undefined) {
       this.log = console;
@@ -99,12 +99,12 @@ class snapi {
 
   print_errors(e: Error | AxiosError, caller: string) {
     if (axios.isAxiosError(e)) {
-      this.log!.debug(`[snapi][${caller}][API Error]`, e.response?.status, e.response?.statusText);
+      this.log!.debug(`[snapi][${caller}][API Error]`, e.response?.status, e.response?.statusText, e.response?.data);
     }
   }
 
 
-  async retry<T>(func: () => Promise<T>, count = 0): Promise<T | undefined> {
+  async retry<T>(caller: string, func: () => Promise<T>, count = 0): Promise<T | undefined> {
     if (this.apiDisabled || count === 2) {
       this.log!.debug('[snapi][retry] Reattempt limit reached.');
       return undefined;
@@ -113,7 +113,7 @@ class snapi {
         return await func();
       } catch (_e) {
         const e: Error = _e as Error;
-        this.print_errors(e, 'retry');
+        this.print_errors(e, caller);
         if (axios.isAxiosError(e)) {
           if (e.response?.statusText === 'Unauthorized') {
             if (count === 0) {
@@ -121,7 +121,7 @@ class snapi {
               await this.batchLogin();
             }
             this.log!.debug('[snapi][retry] Reattempting failed request, attempt #:', count + 2);
-            return await this.retry(func, count + 1);
+            return await this.retry(caller, func, count + 1);
           } else if (e.response?.statusText === 'Not Found') {
             this.log!.debug('[snapi][retry] Function returned 404 from API.');
             throw e;
@@ -164,7 +164,7 @@ class snapi {
 
 
   getRegistration() {
-    return this.retry<AxiosResponse<RegistrationData>>(() => {
+    return this.retry<AxiosResponse<RegistrationData>>('getRegistration', () => {
       return client.get<RegistrationData>(registrationURL, {
         params: {
           _k: this.key,
@@ -186,7 +186,7 @@ class snapi {
 
 
   getFamilyStatus() {
-    return this.retry<AxiosResponse<FamilyStatusData>>(() => {
+    return this.retry<AxiosResponse<FamilyStatusData>>('getFamilyStatus', () => {
       return client.get<FamilyStatusData>(familyStatusURL, {
         params: {
           _k: this.key,
@@ -208,7 +208,7 @@ class snapi {
 
 
   getSleeper() {
-    return this.retry<AxiosResponse<SleeperData>>(() => {
+    return this.retry<AxiosResponse<SleeperData>>('getSleeper', () => {
       return client.get<SleeperData>(sleeperURL, {
         params: {
           _k: this.key,
@@ -230,7 +230,7 @@ class snapi {
 
 
   getBed() {
-    return this.retry<AxiosResponse<BedData>>(() => {
+    return this.retry<AxiosResponse<BedData>>('getBed()', () => {
       return client.get<BedData>(bedURL, {
         params: {
           _k: this.key,
@@ -252,7 +252,7 @@ class snapi {
 
 
   getBedStatus(bedId: string) {
-    return this.retry<AxiosResponse<BedStatusData>>(() => {
+    return this.retry<AxiosResponse<BedStatusData>>('getBedStatus', () => {
       return client.get<BedStatusData>(bedStatusURL.format(bedId), {
         params: {
           _k: this.key,
@@ -274,7 +274,7 @@ class snapi {
 
 
   getBedPauseMode(bedId: string) {
-    return this.retry<AxiosResponse<BedPauseModeData>>(() => {
+    return this.retry<AxiosResponse<BedPauseModeData>>('getBedPauseMode', () => {
       return client.get<BedPauseModeData>(bedPauseModeURL.format(bedId), {
         params: {
           _k: this.key,
@@ -297,7 +297,7 @@ class snapi {
 
 
   putBedPauseMode(bedId: string, mode: PauseMode_e) {
-    return this.retry<AxiosResponse<BedPauseModeData>>(() => {
+    return this.retry<AxiosResponse<BedPauseModeData>>('putBedPauseMode', () => {
       return client.put<BedPauseModeData>(bedPauseModeURL.format(bedId), null, {
         params: {
           _k: this.key,
@@ -320,7 +320,7 @@ class snapi {
 
 
   putSleepNumber(bedId: string, side: BedSide_e, num: number) {
-    return this.retry<AxiosResponse<SleepNumberData>>(() => {
+    return this.retry<AxiosResponse<SleepNumberData>>('putSleepNumber', () => {
       return client.put<SleepNumberData>(sleepNumberURL.format(bedId), {
         side: side,
         sleepNumber: num,
@@ -354,7 +354,7 @@ class snapi {
 
 
   getResponsiveAirStatus(bedId: string) {
-    return this.retry<AxiosResponse<ResponsiveAirStatusData>>(() => {
+    return this.retry<AxiosResponse<ResponsiveAirStatusData>>('getResponsiveAirStatus', () => {
       return client.get<ResponsiveAirStatusData>(responsiveAirURL.format(bedId), {
         params: {
           _k: this.key,
@@ -376,7 +376,7 @@ class snapi {
 
 
   putResponsiveAir(bedId: string, left?: boolean, right?: boolean) {
-    return this.retry<AxiosResponse<ResponsiveAirData>>(() => {
+    return this.retry<AxiosResponse<ResponsiveAirData>>('putResponsiveAir', () => {
       return client.put<ResponsiveAirData>(responsiveAirURL.format(bedId), {
         leftSideEnabled: left,
         rightSideEnabled: right,
@@ -401,7 +401,7 @@ class snapi {
 
 
   putForceIdle(bedId: string) {
-    return this.retry<AxiosResponse<ForceIdleData>>(() => {
+    return this.retry<AxiosResponse<ForceIdleData>>('putForceIdle', () => {
       return client.put<ForceIdleData>(forceIdleURL.format(bedId), null, {
         params: {
           _k: this.key,
@@ -424,7 +424,7 @@ class snapi {
 
 
   getPumpStatus(bedId: string) {
-    return this.retry<AxiosResponse<PumpStatusData>>(() => {
+    return this.retry<AxiosResponse<PumpStatusData>>('getPumpStatus', () => {
       return client.get<PumpStatusData>(pumpStatusURL.format(bedId), {
         params: {
           _k: this.key,
@@ -446,7 +446,7 @@ class snapi {
 
 
   putPreset(bedId: string, side: BedSide_e, preset: Preset_e) {
-    return this.retry<AxiosResponse<PresetData>>(() => {
+    return this.retry<AxiosResponse<PresetData>>('putPreset', () => {
       return client.put<PresetData>(presetURL.format(bedId), {
         speed: 0, // TODO: check this value
         side: side,
@@ -472,7 +472,7 @@ class snapi {
 
 
   putAdjust(bedId: string, side: BedSide_e, position: number, actuator: Actuator_e) {
-    return this.retry<AxiosResponse<AdjustData>>(() => {
+    return this.retry<AxiosResponse<AdjustData>>('putAdjust', () => {
       return client.put<AdjustData>(adjustURL.format(bedId), {
         speed: 0, // TODO: check this value
         side: side,
@@ -507,7 +507,7 @@ class snapi {
 
 
   getFoundationStatus(bedId: string) {
-    return this.retry<AxiosResponse<FoundationStatusData>>(() => {
+    return this.retry<AxiosResponse<FoundationStatusData>>('getFoundationStatus', () => {
       return client.get<FoundationStatusData>(foundationStatusURL.format(bedId), {
         params: {
           _k: this.key,
@@ -529,7 +529,7 @@ class snapi {
 
 
   getOutletStatus(bedId: string, outletId: Outlets_e) {
-    return this.retry<AxiosResponse<OutletStatusData>>(() => {
+    return this.retry<AxiosResponse<OutletStatusData>>('getOutletStatus', () => {
       return client.get<OutletStatusData>(outletStatusURL.format(bedId), {
         params: {
           _k: this.key,
@@ -552,12 +552,14 @@ class snapi {
 
 
   putOutlet(bedId: string, outletId: Outlets_e, setting: Outlet_Setting_e) {
-    return this.retry<AxiosResponse<OutletStatusData>>(() => {
-      return client.put<OutletStatusData>(outletStatusURL.format(bedId), null, {
+    return this.retry<AxiosResponse<OutletStatusData>>('putOutlet', () => {
+      return client.put<OutletStatusData>(outletStatusURL.format(bedId), {
+        timer: 0,
+        outletId: outletId,
+        setting: setting,
+      }, {
         params: {
-          _k: this.key,
-          outletId: outletId,
-          setting: setting,
+          _k: this.key
         },
       });
     });
@@ -576,7 +578,7 @@ class snapi {
 
 
   putMotion(bedId: string, side: BedSide_e, head: Motion_e, massage: Motion_e, foot: Motion_e) {
-    return this.retry<AxiosResponse<MotionData>>(() => {
+    return this.retry<AxiosResponse<MotionData>>('putMotion', () => {
       return client.put<MotionData>(motionURL.format(bedId), {
         side: side,
         headMotion: head,
@@ -603,7 +605,7 @@ class snapi {
 
 
   getUnderbedLightStatus(bedId: string) {
-    return this.retry<AxiosResponse<UnderbedLightStatusData>>(() => {
+    return this.retry<AxiosResponse<UnderbedLightStatusData>>('getUnderbedLightStatus', () => {
       return client.get<UnderbedLightStatusData>(underbedLightURL.format(bedId), {
         params: {
           _k: this.key,
@@ -625,7 +627,7 @@ class snapi {
 
 
   putUnderbedLight(bedId: string, enableAuto: boolean) {
-    return this.retry<AxiosResponse<UnderbedLightData>>(() => {
+    return this.retry<AxiosResponse<UnderbedLightData>>('putUnderbedLight', () => {
       return client.put<UnderbedLightData>(underbedLightURL.format(bedId), {
         enableAuto: enableAuto,
       }, {
@@ -649,7 +651,7 @@ class snapi {
 
 
   getFootwarmingStatus(bedId: string) {
-    return this.retry<AxiosResponse<FootwarmingStatusData>>(() => {
+    return this.retry<AxiosResponse<FootwarmingStatusData>>('getFootwarmingStatus', () => {
       return client.get<FootwarmingStatusData>(footwarmingURL.format(bedId), {
         params: {
           _k: this.key,
@@ -671,7 +673,26 @@ class snapi {
 
 
   putFootwarming(bedId: string, left?: number, right?: number, timerLeft?: number, timerRight?: number) {
-    return this.retry<AxiosResponse<FootwarmingData>>(() => {
+    if (timerLeft != undefined) {
+      timerLeft = Math.round(timerLeft);
+      if (timerLeft <= 0) {
+        timerLeft = 1;
+      }
+      if (timerLeft >= 600) {
+        timerLeft = 600;
+      }
+    }
+    if (timerRight != undefined) {
+      timerRight = Math.round(timerRight);
+      if (timerRight <= 0) {
+        timerRight = 1;
+      }
+      if (timerRight >= 600) {
+        timerRight = 600;
+      }
+    }
+    
+    return this.retry<AxiosResponse<FootwarmingData>>('putFootwarming', () => {
       return client.put<FootwarmingData>(footwarmingURL.format(bedId), {
         footWarmingTempLeft: left,
         footWarmingTempRight: right,
@@ -698,7 +719,7 @@ class snapi {
 
 
   putAdjustment(bedId: string, side: BedSide_e, head: Adjustment_e, waveMode: Adjustment_e, foot: Adjustment_e, timer = 15) {
-    return this.retry<AxiosResponse<AdjustmentData>>(() => {
+    return this.retry<AxiosResponse<AdjustmentData>>('putAdjustment', () => {
       return client.put<AdjustmentData>(adjustmentURL.format(bedId), {
         side: side,
         headMassageMotor: head,
@@ -726,7 +747,7 @@ class snapi {
 
 
   getSleepData(data_date: string, interval: string, sleeper: string = this.userId) {
-    return this.retry<AxiosResponse<SleepDataData>>(() => {
+    return this.retry<AxiosResponse<SleepDataData>>('getSleepData', () => {
       return client.get<SleepDataData>(sleepDataURL, {
         params: {
           _k: this.key,
@@ -753,7 +774,7 @@ class snapi {
 
 
   getSleepSliceData(data_date: string, sleeper: string = this.userId, format?: string) {
-    return this.retry<AxiosResponse<SleepSliceDataData>>(() => {
+    return this.retry<AxiosResponse<SleepSliceDataData>>('getSleepSliceData', () => {
       return client.get<SleepSliceDataData>(sleepSliceDataURL, {
         params: {
           _k: this.key,

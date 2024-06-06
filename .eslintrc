@@ -34,5 +34,18 @@
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "@typescript-eslint/semi": ["warn"],
     "@typescript-eslint/member-delimiter-style": ["warn"]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["test/**"],
+      "plugins": ["jest"],
+      "extends": [
+        "plugin:jest/recommended"
+      ],
+      "rules": {},
+      "env": {
+        "jest/globals": true
+      }
+    }
+  ]
 }
