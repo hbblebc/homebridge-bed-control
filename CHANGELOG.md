@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.1 (2024-06-09)
+
+### Bug Fixes
+
+- Update eslint config
+
 ## v1.3.0 (2024-06-09)
 
 ### New Features
