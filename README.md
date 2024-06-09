@@ -20,16 +20,37 @@ Copyright © 2024 hbblebc. All rights reserved.
 
 This repository contains a smart bed control plugin for homebridge that allows you to control various features of your supported beds. For example, sleep number setting (modeled as a lightbulb), head/foot position, outlets, foot warming, massage, etc. It will detect all the beds on your account and add them automatically.
 
+This plugin uses a cloud API to control the beds (rather than a local network API). As such, downtime is possible if there are network issues or the API is unavailable.
+
 ### Supported bed platforms
  - sleep number
 
 # Installation
 
-Install through homebridge-config-ui-x.
+Install through homebridge-config-ui-x.ivanti192.
 
 # Configuration
 
-Configure in Homebridge UI following config.schema.json
+Configure in Homebridge UI following config.schema.json.
+
+You can add any devices you don't want showing up in homebridge to the configuration ignore list with the syntax: `<bedId>.<bedFeature>`. You can find the `bedId` in the logs after you start the plugin. The possible list of `bedFeature` values are as follows:
+
+- `privacy`
+- `foundation`
+- `<side>.occupancySensor`
+- `<side>.numberControl`
+- `<side>.responsiveAir`
+- `<side>.headControl`
+- `<side>.footControl`
+- `<side>.outlet`
+- `<side>.light`
+- `<side>.footwarming`
+
+Where `<side>` is one of `leftSide`, `rightSide`, or `anySide`. So a full example might look like:
+
+`-9223372018921241066.anySide.occupancySensor`
+
+This would ignore both occupancy sensors and hide them from homebridge on the bed matching the specified ID.
 
 # Usage
 

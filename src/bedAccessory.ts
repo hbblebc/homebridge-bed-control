@@ -1,5 +1,6 @@
 import { TemperatureDisplayUnits } from 'hap-nodejs/dist/lib/definitions';
 import { PlatformAccessory, CharacteristicValue, HAPStatus } from 'homebridge';
+import { HapStatusError } from 'hap-nodejs/dist/lib/util/hapStatusError';
 
 import { BedControlPlatform } from './platform';
 import {
@@ -235,7 +236,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}] Get Privacy Mode -> ${isOn}`);
       return isOn;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -253,7 +256,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][${side}] Get Number -> ${number}`);
       return number;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -264,13 +269,21 @@ export class BedAccessory {
       if (data !== undefined) {
         const isInBed = data[side].isInBed ? 1 : 0;
         this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
+        if (this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.StatusActive).value !== true) {
+          this.services[side]!.occupancySensor!.updateCharacteristic(this.platform.Characteristic.StatusActive, true);
+        }
         return isInBed;
       } else {
-        throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+        this.platform.log.error(
+          'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+        throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
-      throw HAPStatus.NOT_ALLOWED_IN_CURRENT_STATE;
+      if (this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.StatusActive).value !== false) {
+        this.services[side]!.occupancySensor!.updateCharacteristic(this.platform.Characteristic.StatusActive, false);
+      }
+      return 0;
     }
   }
 
@@ -281,13 +294,17 @@ export class BedAccessory {
       if (data !== undefined) {
         const isInBed = (data.leftSide.isInBed || data.rightSide.isInBed) ? 1 : 0;
         this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
+        this.services.anySide!.occupancySensor!.setCharacteristic(this.platform.Characteristic.StatusActive, true);
         return isInBed;
       } else {
-        throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+        this.platform.log.error(
+          'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+        throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
-      throw HAPStatus.NOT_ALLOWED_IN_CURRENT_STATE;
+      this.services.anySide!.occupancySensor!.setCharacteristic(this.platform.Characteristic.StatusActive, false);
+      return 0;
     }
   }
 
@@ -309,7 +326,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][${side}] Get Responsive Air -> ${responsiveAirStatus}`);
       return responsiveAirStatus;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -333,7 +352,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Get Position -> ${actuatorPosition!}`);
       return actuatorPosition!;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -351,7 +372,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][${Outlets_e[outlet]}] Get Outlet State -> ${outletStatus}`);
       return outletStatus;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -411,7 +434,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][anySide] Get Outlet State -> ${outletStatus}`);
       return outletStatus;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -423,7 +448,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming Timer Remaining -> ${footwarmingTimeRemaining}`);
       return +(((footwarmingTimeRemaining - 32) * 5 / 9).toPrecision(1));
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -468,7 +495,9 @@ export class BedAccessory {
       }
       return value;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -489,7 +518,9 @@ export class BedAccessory {
       this.platform.log.debug(`[${this.bedName}][${side}] Get Footwarming State -> ${Footwarming_e[footwarmingStatus]}`);
       return footwarmingStatus;
     } else {
-      throw HAPStatus.SERVICE_COMMUNICATION_FAILURE;
+      this.platform.log.error(
+        'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
+      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -518,13 +549,15 @@ export class BedAccessory {
     if (this.batched_requests[_p] !== undefined) {
       return this.batched_requests[_p];
     }
-    this.batched_requests[_p] =func();
-    this.batched_requests[_p]!.then(() => {
-      this.batched_requests[_p] = undefined;
-    },
-    () => {
-      this.batched_requests[_p] = undefined;
-    });
+    this.batched_requests[_p] = func();
+    this.batched_requests[_p]!.then(
+      () => {
+        this.batched_requests[_p] = undefined;
+      },
+      () => {
+        this.batched_requests[_p] = undefined;
+      },
+    );
     return this.batched_requests[_p];
   }
 

@@ -353,13 +353,25 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                       if (bedAccessory.context.bedFeatures[side].occupancySensor) {
                         bedAccessory.getService(`${side} Occupancy Sensor`)!
                           .getCharacteristic(this.Characteristic.OccupancyDetected)!
-                          .setValue(new Error('Polling data out of sync'));
+                          .setValue(0);
+
+                        if (bedAccessory.getService(`${side} Occupancy Sensor`)!
+                          .getCharacteristic(this.Characteristic.StatusActive)
+                          .value !== false
+                        ) {
+                          bedAccessory.getService(`${side} Occupancy Sensor`)!
+                            .updateCharacteristic(this.Characteristic.StatusActive, false);
+                        }
                       }
 
                       if (bedAccessory.context.bedFeatures[side].numberControl) {
-                        bedAccessory.getService(`${side} Number Control`)!
-                          .getCharacteristic(this.Characteristic.Brightness)!
-                          .setValue(new Error('Polling data out of sync'));
+                        if (bedAccessory.getService(`${side} Number Control`)!
+                          .getCharacteristic(this.Characteristic.StatusActive)
+                          .value !== false
+                        ) {
+                          bedAccessory.getService(`${side} Number Control`)!
+                            .updateCharacteristic(this.Characteristic.StatusActive, false);
+                        }
                       }
 
                       return;
@@ -372,12 +384,29 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                         this.log.debug(`[Polling][${name}][${side}] Get Occupancy -> ${bed[side].isInBed}`);
                         bedAccessory.getService(`${side} Occupancy Sensor`)!
                           .updateCharacteristic(this.Characteristic.OccupancyDetected, bed[side].isInBed);
+
+
+                        if (bedAccessory.getService(`${side} Occupancy Sensor`)!
+                          .getCharacteristic(this.Characteristic.StatusActive)
+                          .value !== true
+                        ) {
+                          bedAccessory.getService(`${side} Occupancy Sensor`)!
+                            .updateCharacteristic(this.Characteristic.StatusActive, true);
+                        }
                       }
 
                       if (bedAccessory.context.bedFeatures[side].numberControl) {
                         this.log.debug(`[Polling][${name}][${side}] Get Number -> ${bed[side].sleepNumber}`);
                         bedAccessory.getService(`${side} Number Control`)!
                           .updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
+
+                        if (bedAccessory.getService(`${side} Number Control`)!
+                          .getCharacteristic(this.Characteristic.StatusActive)
+                          .value !== true
+                        ) {
+                          bedAccessory.getService(`${side} Number Control`)!
+                            .updateCharacteristic(this.Characteristic.StatusActive, true);
+                        }
                       }
                     }
                   });
@@ -394,7 +423,15 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
 
                       bedAccessory.getService('anySide Occupancy Sensor')!
                         .getCharacteristic(this.Characteristic.OccupancyDetected)!
-                        .setValue(new Error('Polling data out of sync'));
+                        .setValue(0);
+
+                      if (bedAccessory.getService('anySide Occupancy Sensor')!
+                        .getCharacteristic(this.Characteristic.StatusActive)
+                        .value !== false
+                      ) {
+                        bedAccessory.getService('anySide Occupancy Sensor')!
+                          .updateCharacteristic(this.Characteristic.StatusActive, false);
+                      }
                     } else {
 
                       if (outOfSyncMessages[bed.bedId]?.anySide === true) {
@@ -404,6 +441,14 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                       this.log.debug(`[Polling][${name}][anySide] Get Occupancy -> ${bed.leftSide.isInBed || bed.rightSide.isInBed}`);
                       bedAccessory.getService('anySide Occupancy Sensor')!
                         .updateCharacteristic(this.Characteristic.OccupancyDetected, bed.leftSide.isInBed || bed.rightSide.isInBed);
+
+                      if (bedAccessory.getService('anySide Occupancy Sensor')!
+                        .getCharacteristic(this.Characteristic.StatusActive)
+                        .value !== true
+                      ) {
+                        bedAccessory.getService('anySide Occupancy Sensor')!
+                          .updateCharacteristic(this.Characteristic.StatusActive, true);
+                      }
                     }
                   }
                 } else {
@@ -427,5 +472,4 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
       }, this.updateInterval);
     }
   }
-
 }

@@ -106,7 +106,7 @@ class snapi {
 
   async retry<T>(caller: string, func: () => Promise<T>, count = 0): Promise<T | undefined> {
     if (this.apiDisabled || count === 2) {
-      this.log!.debug('[snapi][retry] Reattempt limit reached.');
+      this.log!.debug(`[snapi][${caller}] Reattempt limit reached.`);
       return undefined;
     } else {
       try {
@@ -117,18 +117,18 @@ class snapi {
         if (axios.isAxiosError(e)) {
           if (e.response?.statusText === 'Unauthorized') {
             if (count === 0) {
-              this.log!.debug('[snapi][retry] Login expired. Attempting re-authentication.');
+              this.log!.debug(`[snapi][${caller}] Login expired. Attempting re-authentication.`);
               await this.batchLogin();
             }
-            this.log!.debug('[snapi][retry] Reattempting failed request, attempt #:', count + 2);
+            this.log!.debug(`[snapi][${caller}] Reattempting failed request, attempt #:`, count + 2);
             return await this.retry(caller, func, count + 1);
           } else if (e.response?.statusText === 'Not Found') {
-            this.log!.debug('[snapi][retry] Function returned 404 from API.');
+            this.log!.debug(`[snapi][${caller}] Function returned 404 from API.`);
             throw e;
           }
         } else {
-          this.print_errors(e, 'retry');
-          this.log!.error('[snapi][retry] Disabling API. No further requests will be attempted');
+          this.print_errors(e, caller);
+          this.log!.error(`[snapi][${caller}] Disabling API. No further requests will be attempted`);
           this.apiDisabled = true;
         }
       }
@@ -461,6 +461,14 @@ class snapi {
 
 
   async preset(bedId: string, side: BedSide_e, preset: Preset_e) {
+    if (preset === Preset_e.Partner_Snore) {
+      preset = Preset_e.Snore;
+      if (side === BedSide_e.rightSide) {
+        side = BedSide_e.leftSide;
+      } else {
+        side = BedSide_e.rightSide;
+      }
+    }
     const res = await this.putPreset(bedId, side, preset);
     if (res !== undefined) {
       const { data } = res;
@@ -559,7 +567,7 @@ class snapi {
         setting: setting,
       }, {
         params: {
-          _k: this.key
+          _k: this.key,
         },
       });
     });
@@ -673,7 +681,7 @@ class snapi {
 
 
   putFootwarming(bedId: string, left?: number, right?: number, timerLeft?: number, timerRight?: number) {
-    if (timerLeft != undefined) {
+    if (timerLeft !== undefined) {
       timerLeft = Math.round(timerLeft);
       if (timerLeft <= 0) {
         timerLeft = 1;
@@ -682,7 +690,7 @@ class snapi {
         timerLeft = 600;
       }
     }
-    if (timerRight != undefined) {
+    if (timerRight !== undefined) {
       timerRight = Math.round(timerRight);
       if (timerRight <= 0) {
         timerRight = 1;
@@ -691,7 +699,7 @@ class snapi {
         timerRight = 600;
       }
     }
-    
+
     return this.retry<AxiosResponse<FootwarmingData>>('putFootwarming', () => {
       return client.put<FootwarmingData>(footwarmingURL.format(bedId), {
         footWarmingTempLeft: left,

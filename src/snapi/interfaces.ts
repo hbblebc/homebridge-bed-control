@@ -191,13 +191,13 @@ export interface PumpStatusData {
 
 // preset types
 export enum Preset_e {
-  Flat = 1,
-  Zero_G = 2,
-  Snore = 3,
-  Partner_Snore = 4,
-  Watch_TV = 5,
-  Read = 6,
-  Favorite = 128
+  Favorite = 1,
+  Read = 2,
+  Watch_TV = 3,
+  Flat = 4,
+  Zero_G = 5,
+  Snore = 6,
+  Partner_Snore = 0,
 }
 export interface PresetData {}
 
