@@ -73,7 +73,7 @@ All the controls for a single bed will be grouped inside of a single device matc
 
 ### Privacy Mode
 
-When privacy mode is enabled, the API requests that provide occupancy status will be non-functional. As a result, when privacy mode is enabled for a bed, polling will be disabled and occupancy sensors will be unresponsive. If you plan on keeping privacy mode enabled permenantly, I recommend keeping polling disabled and hiding the occupancy sensor devices from the accessory list using the platform settings.
+When privacy mode is enabled, the API requests that provide occupancy status will be non-functional. As a result, when privacy mode is enabled for a bed, polling will be disabled and occupancy sensors will not activate when somebody is in bed. If you plan on keeping privacy mode enabled permenantly, I recommend keeping polling disabled and hiding the occupancy sensor devices from the accessory list using the platform settings.
 
 # Issues/Future Work
 

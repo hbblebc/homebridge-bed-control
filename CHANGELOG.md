@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.0 (2024-06-09)
+
+### New Features
+
+- Updated all dependencies to their latest versions
+- Added unit tests for the platform, accessory, and API
+- Updated the README with `ignoreList` information
+
+### Bug Fixes
+
+- Fixed broken API endpoint URLs
+- Fixed broken outlet and footwarming functions
+- Fixed typo in interface labels
+- Fixed changed `preset` values
+- Handle error cases in the proper hap-nodejs recommended way
+  - For cases where there is a failure to communicate with the API, throw an error. For all other cases, such as being unable to detect occupancy status due to privacy mode, or the data being out of sync, set occupancy to undetected or set the bed control lightbulb to "off" to indicate an error state
+
 ## v1.2.3 (2022-09-24)
 
 ### Bug Fixes
