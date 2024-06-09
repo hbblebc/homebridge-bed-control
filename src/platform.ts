@@ -365,13 +365,9 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                       }
 
                       if (bedAccessory.context.bedFeatures[side].numberControl) {
-                        if (bedAccessory.getService(`${side} Number Control`)!
-                          .getCharacteristic(this.Characteristic.StatusActive)
-                          .value !== false
-                        ) {
-                          bedAccessory.getService(`${side} Number Control`)!
-                            .updateCharacteristic(this.Characteristic.StatusActive, false);
-                        }
+                        // Turn "off" the number control to indicate that the data is out of sync
+                        bedAccessory.getService(`${side} Number Control`)!
+                          .updateCharacteristic(this.Characteristic.On, false);
                       }
 
                       return;
@@ -401,11 +397,11 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                           .updateCharacteristic(this.Characteristic.Brightness, bed[side].sleepNumber);
 
                         if (bedAccessory.getService(`${side} Number Control`)!
-                          .getCharacteristic(this.Characteristic.StatusActive)
+                          .getCharacteristic(this.Characteristic.On)
                           .value !== true
                         ) {
                           bedAccessory.getService(`${side} Number Control`)!
-                            .updateCharacteristic(this.Characteristic.StatusActive, true);
+                            .updateCharacteristic(this.Characteristic.On, true);
                         }
                       }
                     }
