@@ -1,11 +1,10 @@
 import { expect, jest, test, beforeEach, afterEach, describe } from '@jest/globals';
 import { mock } from 'ts-jest-mocker';
+import { API, Characteristic, HAPStatus, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
+import { OccupancySensor } from 'homebridge/node_modules/hap-nodejs/dist/lib/definitions';
+import Snapi from '../src/snapi/snapi';
 import { BedAccessory } from '../src/bedAccessory';
 import { BedControlPlatform } from '../src/platform';
-import { API, Characteristic, HAPStatus, Logger, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
-import { HapStatusError } from 'hap-nodejs/dist/lib/util/hapStatusError';
-import { OccupancySensor } from 'hap-nodejs/dist/lib/definitions';
-import Snapi from '../src/snapi/snapi';
 import {
   Actuator_e,
   BedSideKey_e,
@@ -20,56 +19,47 @@ import {
   PumpStatusData,
   ResponsiveAirStatusData,
 } from '../src/snapi/interfaces';
+import { HomebridgeAPI } from 'homebridge/lib/api';
 
 jest.useFakeTimers();
 
 describe('BedAccessory', () => {
   let bedAccessory: BedAccessory;
   let platform: BedControlPlatform;
-  let accessory: PlatformAccessory;
   let mockSnapi: Snapi;
 
-  let mockLogger: Logger;
+  let mockLogging: Logging;
   let mockConfig: PlatformConfig;
   let mockAPI: API;
 
-  let characteristic;
-  let service;
-  let bed1Accessory;
+  let characteristic: Characteristic;
+  let service: Service;
+  let platformAccessory: PlatformAccessory;
 
   const bedId = 'bed1';
 
   beforeEach(() => {
-    characteristic = {};
-    characteristic['setCharacteristic'] = () => characteristic;
-    characteristic['getCharacteristic'] = () => characteristic;
-    characteristic['updateCharacteristic'] = () => characteristic;
-    characteristic['onSet'] = () => characteristic;
-    characteristic['onGet'] = () => characteristic;
-    characteristic['setProps'] = () => characteristic;
-    characteristic['setValue'] = () => characteristic;
 
-    service = () => {
-      const self = {};
-      const setCharacteristic = () => characteristic;
-      const getCharacteristic = () => characteristic;
-      const updateCharacteristic = () => characteristic;
+    characteristic = {} as unknown as Characteristic;
+    characteristic['onSet'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    characteristic['onGet'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    characteristic['setProps'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    characteristic['setValue'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
 
-      self['setCharacteristic'] = setCharacteristic;
-      self['getCharacteristic'] = getCharacteristic;
-      self['updateCharacteristic'] = updateCharacteristic;
-      return (self);
-    };
+    service = {} as unknown as Service;
+    service['setCharacteristic'] = jest.fn<() => Service>().mockReturnValue(service);
+    service['getCharacteristic'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    service['updateCharacteristic'] = jest.fn<() => Service>().mockReturnValue(service);
 
-    bed1Accessory = {
+    platformAccessory = {
       UUID: 'uuid',
       context: {
         ignoreList: [],
         updateInterval: 0,
         sendDelay: 2000,
         bedStats: {
-          bedId: bedId,
-          name: bedId,
+          bedId: 'bed1',
+          name: 'bed1',
         },
         bedFeatures: {
           Manufacturer: '',
@@ -84,52 +74,51 @@ describe('BedAccessory', () => {
           },
         },
       },
-      displayName: bedId,
-      getService: service,
+      displayName: 'bed1',
+      getService: jest.fn<() => Service>().mockReturnValue(service),
     } as unknown as PlatformAccessory;
 
-    accessory = bed1Accessory;
-
-    mockLogger = mock<Logger>();
+    mockLogging = mock<Logging>();
     mockConfig = mock<PlatformConfig>();
-    mockAPI = mock<API>();
+    // mockAPI = mock<API>();
+    mockAPI = new HomebridgeAPI();
 
-    mockLogger.info = () => { };
-    mockLogger.warn = () => { };
-    mockLogger.error = () => { };
-    mockLogger.debug = () => { };
-    // mockLogger.error = (message: string, ...parameters: any[]) => console.log(message, parameters);
-    // mockLogger.debug = (message: string, ...parameters: any[]) => console.log(message, parameters);
+    mockLogging.info = () => { };
+    mockLogging.warn = () => { };
+    mockLogging.error = () => { };
+    mockLogging.debug = () => { };
+    // mockLogging.error = (message: string, ...parameters: any[]) => console.log(message, parameters);
+    // mockLogging.debug = (message: string, ...parameters: any[]) => console.log(message, parameters);
     mockConfig.email = '';
     mockConfig.password = '';
     mockConfig.updateInterval = 0;
     mockConfig.delay = 2;
     mockConfig.bedPlatform = '';
     mockConfig.ignore = [];
-    mockAPI.on = () => {
-      return mockAPI;
-    };
-    mockAPI.hap.uuid = {
-      generate: () => 'uuid',
-      isValid: () => true,
-      unparse: () => '',
-      write: () => Buffer.from(''),
-      toShortForm: () => '',
-      toLongForm: () => '',
-      BASE_UUID: '-0000-1000-8000-0026BB765291',
-    };
-    // @ts-expect-error - mock Service not describing full API
-    mockAPI.hap.Service = mock<Service>();
-    // @ts-expect-error - mock Characteristic not describing full API
-    mockAPI.hap.Characteristic = mock<Characteristic>();
-    mockAPI.registerPlatformAccessories = () => { };
-    mockAPI.unregisterPlatformAccessories = () => { };
+    // mockAPI.on = () => {
+    //   return mockAPI;
+    // };
+    // mockAPI.hap.uuid = {
+    //   generate: () => 'uuid',
+    //   isValid: () => true,
+    //   unparse: () => '',
+    //   write: () => Buffer.from(''),
+    //   toShortForm: () => '',
+    //   toLongForm: () => '',
+    //   BASE_UUID: '-0000-1000-8000-0026BB765291',
+    // };
+    // // @ts-expect-error - mock Service not describing full API
+    // mockAPI.hap.Service = mock<Service>();
+    // // @ts-expect-error - mock Characteristic not describing full API
+    // mockAPI.hap.Characteristic = mock<Characteristic>();
+    // mockAPI.registerPlatformAccessories = () => { };
+    // mockAPI.unregisterPlatformAccessories = () => { };
 
-    platform = new BedControlPlatform(mockLogger, mockConfig, mockAPI);
+    platform = new BedControlPlatform(mockLogging, mockConfig, mockAPI);
 
     mockSnapi = mock(Snapi);
 
-    bedAccessory = new BedAccessory(platform, accessory, mockSnapi);
+    bedAccessory = new BedAccessory(platform, platformAccessory, mockSnapi);
   });
 
   afterEach(() => {
@@ -215,7 +204,7 @@ describe('BedAccessory', () => {
   test('should throw an error if communication with the service fails [getNumber]', async () => {
     jest.spyOn(bedAccessory, 'getPumpStatus').mockResolvedValue(undefined);
     await expect(bedAccessory.getNumber(BedSideKey_e.LeftSide)).rejects.toThrow(
-      new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE));
+      new platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE));
   });
 
   test('should get occupancy for the left side', async () => {
@@ -373,7 +362,7 @@ describe('BedAccessory', () => {
   test('should throw an error if communication with the service fails [getResponsiveAir]', async () => {
     jest.spyOn(bedAccessory, 'getResponsiveAirStatus').mockResolvedValue(undefined);
     await expect(bedAccessory.getResponsiveAir(BedSideKey_e.LeftSide)).rejects.toThrow(
-      new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
+      new platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
     );
   });
 
@@ -494,13 +483,13 @@ describe('BedAccessory', () => {
     jest.spyOn(mockSnapi, 'outletStatus').mockResolvedValue(undefined);
     const outlet = Outlets_e.LeftPlug;
     await expect(bedAccessory.getOutlet(outlet)).rejects.toThrow(
-      new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
+      new platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
     );
   });
 
   test('should set the outlet state to on for any side outlet', async () => {
-    bed1Accessory.context.bedFeatures.leftSide.outlet = true;
-    bed1Accessory.context.bedFeatures.rightSide.outlet = true;
+    platformAccessory.context.bedFeatures.leftSide.outlet = true;
+    platformAccessory.context.bedFeatures.rightSide.outlet = true;
     const setOutletMock = jest.spyOn(mockSnapi, 'outlet');
     const outletKey = 'outlet';
     const value = true;
@@ -510,8 +499,8 @@ describe('BedAccessory', () => {
   });
 
   test('should set the outlet state to off for any side outlet', async () => {
-    bed1Accessory.context.bedFeatures.leftSide.outlet = true;
-    bed1Accessory.context.bedFeatures.rightSide.outlet = true;
+    platformAccessory.context.bedFeatures.leftSide.outlet = true;
+    platformAccessory.context.bedFeatures.rightSide.outlet = true;
     const setOutletMock = jest.spyOn(mockSnapi, 'outlet');
     const outletKey = 'outlet';
     const value = false;
@@ -521,8 +510,8 @@ describe('BedAccessory', () => {
   });
 
   test('should set the outlet state to on for any side light', async () => {
-    bed1Accessory.context.bedFeatures.leftSide.light = true;
-    bed1Accessory.context.bedFeatures.rightSide.light = true;
+    platformAccessory.context.bedFeatures.leftSide.light = true;
+    platformAccessory.context.bedFeatures.rightSide.light = true;
     const setOutletMock = jest.spyOn(mockSnapi, 'outlet');
     const outletKey = 'light';
     const value = true;
@@ -532,8 +521,8 @@ describe('BedAccessory', () => {
   });
 
   test('should set the outlet state to off for any side light', async () => {
-    bed1Accessory.context.bedFeatures.leftSide.light = true;
-    bed1Accessory.context.bedFeatures.rightSide.light = true;
+    platformAccessory.context.bedFeatures.leftSide.light = true;
+    platformAccessory.context.bedFeatures.rightSide.light = true;
     const setOutletMock = jest.spyOn(mockSnapi, 'outlet');
     const outletKey = 'light';
     const value = false;
@@ -543,8 +532,8 @@ describe('BedAccessory', () => {
   });
 
   test('should get the outlet state for any side', async () => {
-    bed1Accessory.context.bedFeatures.leftSide.outlet = true;
-    bed1Accessory.context.bedFeatures.rightSide.outlet = true;
+    platformAccessory.context.bedFeatures.leftSide.outlet = true;
+    platformAccessory.context.bedFeatures.rightSide.outlet = true;
     const outletStatus = Outlet_Setting_e.On;
     const leftOutletData = {
       outlet: Outlets_e.LeftPlug,
@@ -569,7 +558,7 @@ describe('BedAccessory', () => {
     jest.spyOn(mockSnapi, 'outletStatus').mockResolvedValue(undefined);
 
     await expect(bedAccessory.getAnyOutlet('outlet')).rejects.toThrow(
-      new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
+      new platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
     );
   });
 
@@ -600,7 +589,7 @@ describe('BedAccessory', () => {
   test('should throw an error if communication with the service fails [getFootwarmingTimeRemaining]', async () => {
     jest.spyOn(bedAccessory, 'getFootwarmingStatus').mockResolvedValue(undefined);
     await expect(bedAccessory.getFootwarmingTimeRemaining(BedSideKey_e.LeftSide)).rejects.toThrow(
-      new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
+      new platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE),
     );
   });
 
@@ -748,7 +737,7 @@ describe('BedAccessory', () => {
 
   test('should throw an error if communication with the service fails [getFootwarming]', async () => {
     const getFootwarmingStatusMock = jest.spyOn(mockSnapi, 'footwarmingStatus').mockResolvedValue(undefined);
-    await expect(bedAccessory.getFootwarming(BedSideKey_e.LeftSide)).rejects.toThrow(HapStatusError);
+    await expect(bedAccessory.getFootwarming(BedSideKey_e.LeftSide)).rejects.toThrow(platform.api.hap.HapStatusError);
     expect(getFootwarmingStatusMock).toHaveBeenCalled();
   });
 

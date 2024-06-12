@@ -1,9 +1,19 @@
-import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
+import {
+  API,
+  DynamicPlatformPlugin,
+  Logging,
+  PlatformAccessory,
+  PlatformConfig,
+  Service,
+  Characteristic
+} from 'homebridge';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import Snapi from './snapi/snapi';
-import { BedFeatures, BedSideKey_e, BedState, Outlets_e, PauseMode_e } from './snapi/interfaces';
+import { BedSideKey_e, BedState, Outlets_e, PauseMode_e } from './snapi/interfaces';
 import { BedAccessory } from './bedAccessory';
+import { BedFeatures, OutOfSyncMessages, PrivacyMode, SideFeatures } from './interfaces';
+
 
 /**
  * HomebridgePlatform
@@ -11,8 +21,8 @@ import { BedAccessory } from './bedAccessory';
  * parse the user config and discover/register accessories with Homebridge.
  */
 export class BedControlPlatform implements DynamicPlatformPlugin {
-  public readonly Service: typeof Service = this.api.hap.Service;
-  public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
+  public readonly Service: typeof Service;
+  public readonly Characteristic: typeof Characteristic;
 
   // this is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
@@ -26,13 +36,16 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
   public ignoreList: string[];
   public snapi: Snapi;
 
-  public privacyModeEnabled = {};
+  public privacyModeEnabled: PrivacyMode = {};
 
   constructor(
-    public readonly log: Logger,
+    public readonly log: Logging,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
+    
+    this.Service = api.hap.Service;
+    this.Characteristic = api.hap.Characteristic;
 
     this.disabled = false;
     this.username = config['email'];
@@ -241,13 +254,16 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
             const ignoreVals = ignoreString.split('.');
             if (ignoreVals.length === 2) {
               if (['leftSide', 'rightSide', 'anySide'].includes(ignoreVals[1])) {
-                this.log.info(`Ignoring bed ${bedStats.name} ${ignoreVals[1]}`);
-                Object.keys(bedFeatures[ignoreVals[1]]).forEach(feature => {
-                  bedFeatures[ignoreVals[1]][feature] = false;
+                const sideKey = ignoreVals[1] as 'leftSide' | 'rightSide' | 'anySide';
+                this.log.info(`Ignoring bed ${bedStats.name} ${sideKey}`);
+                Object.keys(bedFeatures[sideKey]).forEach(feature => {
+                  const featureKey = feature as keyof SideFeatures;
+                  bedFeatures[sideKey][featureKey] = false;
                 });
               } else if (['privacy', 'foundation'].includes(ignoreVals[1])) {
-                this.log.info(`Ignoring bed ${bedStats.name} ${ignoreVals[1]}`);
-                bedFeatures[ignoreVals[1]] = false;
+                const featureKey = ignoreVals[1] as 'privacy' | 'foundation';
+                this.log.info(`Ignoring bed ${bedStats.name} ${featureKey}`);
+                bedFeatures[featureKey] = false;
               } else {
                 this.log.error(`Unknown ignore list value: ${ignoreString}`);
               }
@@ -265,8 +281,10 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
                   'footwarming',
                 ].includes(ignoreVals[2])
               ) {
+                const sideKey = ignoreVals[1] as 'leftSide' | 'rightSide' | 'anySide';
+                const featureKey = ignoreVals[2] as keyof SideFeatures;
                 this.log.info(`Ignoring bed ${bedStats.name} ${ignoreVals[1]} ${ignoreVals[2]}`);
-                bedFeatures[ignoreVals[1]][ignoreVals[2]] = false;
+                bedFeatures[sideKey][featureKey] = false;
               } else {
                 this.log.error(`Unknown ignore list value: ${ignoreString}`);
               }
@@ -322,7 +340,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
       }
 
       let disabledMessage = false;
-      const outOfSyncMessages = {};
+      const outOfSyncMessages: OutOfSyncMessages = {};
 
       const pollInterval = setInterval(async () => {
         // Check if all beds have privacy mode enabled

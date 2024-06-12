@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-empty-interface */
-import { HeaterCooler, Lightbulb, OccupancySensor, Outlet, Switch } from 'hap-nodejs/dist/lib/definitions';
-
 // login types
 export interface LoginData {
   userId: string;
@@ -50,7 +46,7 @@ export interface Sleeper {
   timezone: string;
   isMale: boolean;
   weight: number; // in lbs
-  duration: any; // TODO: check type
+  duration: string | number | null; // TODO: check type
   sleeperId: string;
   height: number; // in inches
   licenseVersion: number;
@@ -73,7 +69,7 @@ export interface SleeperData {
 export interface BedStats {
   registrationDate: string;
   sleeperRightId: string;
-  base: any; // TODO: check type
+  base: string | number | null; // TODO: check type
   returnRequestStatus: number;
   size: string;
   name: string;
@@ -255,7 +251,7 @@ export interface OutletStatusData {
   bedId: string;
   outlet: Outlets_e;
   setting: Outlet_Setting_e;
-  timer: any; // TODO: check type
+  timer: string | number | null; // TODO: check type
 }
 
 // motion types
@@ -299,8 +295,8 @@ export interface SleepData {
   message: string;
   data: string;
   sessions: Sessions[];
-  goalEntry: any; // TODO: check type
-  tags: any[]; // TODO: check type
+  goalEntry: string | number | null; // TODO: check type
+  tags: string[] | number[]; // TODO: check type
 }
 
 export interface SleepDataData {
@@ -340,44 +336,7 @@ export interface SleepSliceDataData {
   sleepers: SleeperSliceData[];
 }
 
-// bedFeatures type
-export interface SideFeatures {
-  occupancySensor: boolean;
-  numberControl: boolean;
-  responsiveAir: boolean;
-  headControl: boolean;
-  footControl: boolean;
-  outlet: boolean;
-  light: boolean;
-  footwarming: boolean;
-}
-
-export interface BedFeatures {
-  privacy: boolean;
-  foundation: boolean;
-  leftSide: SideFeatures;
-  rightSide: SideFeatures;
-  anySide: SideFeatures;
-  Manufacturer: string;
-  Model: string;
-  SerialNumber: string;
-}
-
-// services type
-export interface SideServices {
-  occupancySensor?: OccupancySensor;
-  numberControl?: Lightbulb;
-  responsiveAir?: Switch;
-  headControl?: Lightbulb;
-  footControl?: Lightbulb;
-  outlet?: Outlet;
-  light?: Outlet;
-  footwarmingControl?: HeaterCooler;
-}
-
-export interface Services {
-  privacySwitch?: Switch;
-  leftSide?: SideServices;
-  rightSide?: SideServices;
-  anySide?: SideServices;
+export interface BatchRequests {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [_p: string]: Promise<any> | undefined;
 }

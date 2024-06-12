@@ -1,6 +1,9 @@
 # Ignore compiled code
 dist
 
+# Ignore local files
+*.local
+
 # ------------- Defaults ------------- #
 
 # Logs

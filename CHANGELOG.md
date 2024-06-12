@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.2 (2024-06-11)
+
+### Bug Fixes
+
+- Fix crash with hap-nodejs imports
+- Update project configuration to use latest homebridge-recommended template defaults
+- Fix many typescript issues
+
 ## v1.3.1 (2024-06-09)
 
 ### Bug Fixes

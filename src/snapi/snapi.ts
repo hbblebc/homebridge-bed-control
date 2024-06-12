@@ -14,7 +14,7 @@ import { Logger } from 'homebridge';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
-import './string.extensions';
+import './string';
 import {
   loginURL,
   registrationURL,
@@ -71,6 +71,7 @@ import {
   AdjustmentData,
   SleepDataData,
   SleepSliceDataData,
+  BatchRequests,
 } from './interfaces';
 
 const jar = new CookieJar();
@@ -84,7 +85,7 @@ class snapi {
   protected apiDisabled = false;
 
   // used in batchRequests
-  private _login?: Promise<LoginData> = undefined;
+  private batched_requests: BatchRequests = {};
 
   constructor(
     private readonly username: string,
@@ -809,17 +810,19 @@ class snapi {
 
 
   batchRequests<T>(_p: string, func: () => Promise<T>): Promise<T> {
-    if (this[_p] !== undefined) {
-      return this[_p];
+    if (this.batched_requests[_p] !== undefined) {
+      return this.batched_requests[_p]!;
     }
-    this[_p] = func();
-    this[_p]!.then(() => {
-      this[_p] = undefined;
-    },
-    () => {
-      this[_p] = undefined;
-    });
-    return this[_p];
+    this.batched_requests[_p] = func();
+    this.batched_requests[_p]!.then(
+      () => {
+        this.batched_requests[_p] = undefined;
+      },
+      () => {
+        this.batched_requests[_p] = undefined;
+      },
+    );
+    return this.batched_requests[_p]!;
   }
 
 }

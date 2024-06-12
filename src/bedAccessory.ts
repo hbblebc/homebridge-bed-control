@@ -1,6 +1,4 @@
-import { TemperatureDisplayUnits } from 'hap-nodejs/dist/lib/definitions';
 import { PlatformAccessory, CharacteristicValue, HAPStatus } from 'homebridge';
-import { HapStatusError } from 'hap-nodejs/dist/lib/util/hapStatusError';
 
 import { BedControlPlatform } from './platform';
 import {
@@ -15,10 +13,11 @@ import {
   Outlet_Setting_e,
   PauseMode_e,
   ResponsiveAirStatusData,
-  Services,
   PumpStatusData,
+  BatchRequests,
 } from './snapi/interfaces';
 import Snapi from './snapi/snapi';
+import { DelayActuator, DelaySleepNumber, Services, BedOutlets, OutletSetup, BedsideOutlets } from './interfaces';
 
 
 export class BedAccessory {
@@ -27,9 +26,9 @@ export class BedAccessory {
   protected bedName: string;
 
   // used in batchRequests
-  private batched_requests = {};
-  private setSleepNumber = {};
-  private adjustActuator = {
+  private batched_requests: BatchRequests = {};
+  private setSleepNumber: DelaySleepNumber = {};
+  private adjustActuator: DelayActuator = {
     [BedSideKey_e.LeftSide]: {},
     [BedSideKey_e.RightSide]: {},
   };
@@ -106,34 +105,46 @@ export class BedAccessory {
           }
         });
 
-        // Set up outlets and lights
-        const outlets = (side === BedSideKey_e.LeftSide) ? {
-          outlet: Outlets_e.LeftPlug,
-          light: Outlets_e.LeftLight,
-        } : {
-          outlet: Outlets_e.RightPlug,
-          light: Outlets_e.RightLight,
+        const outletSideValues: BedOutlets = {
+          [BedSideKey_e.LeftSide]: {
+            outlet: Outlets_e.LeftPlug,
+            light: Outlets_e.LeftLight,
+          },
+          [BedSideKey_e.RightSide]: {
+            outlet: Outlets_e.RightPlug,
+            light: Outlets_e.RightLight,
+          },
         };
 
-        const outletNames = {
-          outlet: 'Outlet',
-          light: 'Light',
-        };
+        const outlets: OutletSetup[] = [
+          {
+            outletEnabled: this.accessory.context.bedFeatures[side].outlet,
+            outletService: this.services[side]!.outlet,
+            outletName: 'Outlet',
+            outletValue: outletSideValues[side].outlet,
+          },
+          {
+            outletEnabled: this.accessory.context.bedFeatures.leftSide.light,
+            outletService: this.services[side]!.light,
+            outletName: 'Light',
+            outletValue: outletSideValues[side].light,
+          },
+        ];
 
-        Object.entries(outlets).forEach(([outletKey, outlet]) => {
-          if (this.accessory.context.bedFeatures[side][outletKey]) {
+        outlets.forEach((outlet) => {
+          if (outlet.outletEnabled) {
             // If foundation includes selected outlet
-            this.services[side]![outletKey] =
-              this.accessory.getService(`${side} ${outletNames[outletKey]} Control`) ||
+            outlet.outletService =
+              this.accessory.getService(`${side} ${outlet.outletName} Control`) ||
               this.accessory.addService(
                 this.platform.Service.Outlet,
-                `${side} ${outletNames[outletKey]} Control`,
-                this.bedId + `${side}${outletNames[outletKey]}Control`,
+                `${side} ${outlet.outletName} Control`,
+                this.bedId + `${side}${outlet.outletName}Control`,
               );
 
-            this.services[side]![outletKey]!.getCharacteristic(this.platform.Characteristic.On)
-              .onSet((async (value: CharacteristicValue) => this.setOutlet(outlet, value as boolean)).bind(this))
-              .onGet((async () => this.getOutlet(outlet)).bind(this));
+            outlet.outletService!.getCharacteristic(this.platform.Characteristic.On)
+              .onSet((async (value: CharacteristicValue) => this.setOutlet(outlet.outletValue!, value as boolean)).bind(this))
+              .onGet((async () => this.getOutlet(outlet.outletValue!)).bind(this));
           }
         });
 
@@ -154,7 +165,7 @@ export class BedAccessory {
             .onGet(async () => 37.8);
           this.services[side]!.footwarmingControl!.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
             .onSet(async () => null)
-            .onGet(async () => TemperatureDisplayUnits.FAHRENHEIT);
+            .onGet(async () => this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT);
         }
 
       }
@@ -194,31 +205,47 @@ export class BedAccessory {
 
 
     // Set up outlets and lights
-    const outlets = {
-      outlet: 'Outlet',
-      light: 'Light',
-    };
+    // const outlets = {
+    //   outlet: 'Outlet',
+    //   light: 'Light',
+    // };
 
-    Object.entries(outlets).forEach(([outletKey, outlet]) => {
-      if (this.accessory.context.bedFeatures.anySide[outletKey]) {
+    const outlets: OutletSetup[] = [
+      {
+        outletEnabled: this.accessory.context.bedFeatures.anySide.outlet,
+        outletService: this.services.anySide!.outlet,
+        outletName: 'Outlet',
+        outletKey: 'outlet',
+      },
+      {
+        outletEnabled: this.accessory.context.bedFeatures.anySide.light,
+        outletService: this.services.anySide!.light,
+        outletName: 'Light',
+        outletKey: 'light',
+      },
+    ];
+
+    outlets.forEach(outlet => {
+      if (outlet.outletEnabled) {
         // If foundation includes selected outlet
-        this.services.anySide![outletKey] =
-          this.accessory.getService(`anySide ${outlet} Control`) ||
+        outlet.outletService =
+          this.accessory.getService(`anySide ${outlet.outletName} Control`) ||
           this.accessory.addService(
             this.platform.Service.Outlet,
-            `anySide ${outlet} Control`,
-            this.bedId + `anySide${outlet}Control`,
+            `anySide ${outlet.outletService} Control`,
+            this.bedId + `anySide${outlet.outletService}Control`,
           );
 
-        this.services.anySide![outletKey]!.getCharacteristic(this.platform.Characteristic.On)
-          .onSet((async (value: CharacteristicValue) => this.setAnyOutlet(outletKey, value as boolean)).bind(this))
-          .onGet((async () => this.getAnyOutlet(outletKey)).bind(this));
+        outlet.outletService!.getCharacteristic(this.platform.Characteristic.On)
+          .onSet((async (value: CharacteristicValue) => this.setAnyOutlet(outlet.outletKey!, value as boolean)).bind(this))
+          .onGet((async () => this.getAnyOutlet(outlet.outletKey!)).bind(this));
       }
     });
   }
 
 
   async setPrivacy(value: CharacteristicValue) {
+    value = value as boolean;
     this.platform.log.debug(`[${this.bedName}] Set Privacy Mode -> ${value}`);
     this.snapi.setBedPauseMode(this.bedId, value ? PauseMode_e.On : PauseMode_e.Off);
 
@@ -238,13 +265,14 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
 
   async setNumber(side: BedSideKey_e, value: number) {
     this.platform.log.debug(`[${this.bedName}][${side}] Set Number -> ${value}`);
+    // @ts-expect-error the debounce wrapper is hiding the number of args
     this.setSleepNumber[side](this.bedId, BedSide_e[side], value);
   }
 
@@ -258,7 +286,7 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -276,7 +304,7 @@ export class BedAccessory {
       } else {
         this.platform.log.error(
           'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-        throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+        throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
@@ -299,7 +327,7 @@ export class BedAccessory {
       } else {
         this.platform.log.error(
           'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-        throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+        throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
@@ -328,13 +356,14 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
 
   async setActuatorPosition(side: BedSideKey_e, actuator: Actuator_e, value: number) {
     this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Set Position -> ${value}`);
+    // @ts-expect-error the debounce wrapper is hiding the number of args
     this.adjustActuator[side][actuator](this.bedId, BedSide_e[side], value, actuator);
   }
 
@@ -354,7 +383,7 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -374,13 +403,13 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
 
-  async setAnyOutlet(outletKey: string, value: boolean) {
-    const outlets = {
+  async setAnyOutlet(outletKey: (keyof BedsideOutlets), value: boolean) {
+    const outlets: BedOutlets = {
       leftSide: {
         outlet: Outlets_e.LeftPlug,
         light: Outlets_e.LeftLight,
@@ -400,8 +429,8 @@ export class BedAccessory {
   }
 
 
-  async getAnyOutlet(outletKey: string): Promise<CharacteristicValue> {
-    const outlets = {
+  async getAnyOutlet(outletKey: (keyof BedsideOutlets)): Promise<CharacteristicValue> {
+    const outlets: BedOutlets = {
       leftSide: {
         outlet: Outlets_e.LeftPlug,
         light: Outlets_e.LeftLight,
@@ -436,7 +465,7 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -450,7 +479,7 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -497,7 +526,7 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -520,7 +549,7 @@ export class BedAccessory {
     } else {
       this.platform.log.error(
         'No data returned from the API. This is likely due to an issue with the API and should resolve itself soon.');
-      throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
@@ -547,7 +576,7 @@ export class BedAccessory {
 
   batchRequests<T>(_p: string, func: () => Promise<T>): Promise<T> {
     if (this.batched_requests[_p] !== undefined) {
-      return this.batched_requests[_p];
+      return this.batched_requests[_p]!;
     }
     this.batched_requests[_p] = func();
     this.batched_requests[_p]!.then(
@@ -558,11 +587,11 @@ export class BedAccessory {
         this.batched_requests[_p] = undefined;
       },
     );
-    return this.batched_requests[_p];
+    return this.batched_requests[_p]!;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  debounce(func: (...args: any[]) => any, timeout = 300): (...args: any[]) => void {
+  debounce(func: (...args: any[]) => any, timeout = 300): ((...args: any[]) => void) {
     let timer: NodeJS.Timeout;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (...args: any[]) => {

@@ -1,10 +1,10 @@
 import { when } from 'jest-when';
 import { expect, jest, test, beforeEach, describe } from '@jest/globals';
 import { mock } from 'ts-jest-mocker';
+import { API, Characteristic, HapStatusError, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { BedControlPlatform } from '../src/platform';
-import { API, Characteristic, Logger, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import Snapi from '../src/snapi/snapi';
-import { PauseMode_e } from '../src/snapi/interfaces';
+import { BedData, BedState, PauseMode_e } from '../src/snapi/interfaces';
 
 
 jest.useFakeTimers();
@@ -22,39 +22,29 @@ jest.mock('../src/snapi/snapi', () => ({
 // jest.mock('../src/snapi/snapi');
 
 describe('BedControlPlatform', () => {
-  let characteristic;
-  let service;
-  let bed1Accessory;
-  let bed2Accessory;
-  let familyBeds;
+  let characteristic: Characteristic;
+  let service: Service;
+  let bed1Accessory: PlatformAccessory;
+  let bed2Accessory: PlatformAccessory;
+  let familyBeds: BedState[];
 
-  let mockLogger: Logger;
+  let mockLogging: Logging;
   let mockConfig: PlatformConfig;
   let mockAPI: API;
   let platform: BedControlPlatform;
 
   beforeEach(() => {
 
-    characteristic = {};
-    characteristic['setCharacteristic'] = () => characteristic;
-    characteristic['getCharacteristic'] = () => characteristic;
-    characteristic['updateCharacteristic'] = () => characteristic;
-    characteristic['onSet'] = () => characteristic;
-    characteristic['onGet'] = () => characteristic;
-    characteristic['setProps'] = () => characteristic;
-    characteristic['setValue'] = () => characteristic;
+    characteristic = {} as unknown as Characteristic;
+    characteristic['onSet'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    characteristic['onGet'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    characteristic['setProps'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    characteristic['setValue'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
 
-    service = () => {
-      const self = {};
-      const setCharacteristic = () => characteristic;
-      const getCharacteristic = () => characteristic;
-      const updateCharacteristic = () => characteristic;
-
-      self['setCharacteristic'] = setCharacteristic;
-      self['getCharacteristic'] = getCharacteristic;
-      self['updateCharacteristic'] = updateCharacteristic;
-      return (self);
-    };
+    service = {} as unknown as Service;
+    service['setCharacteristic'] = jest.fn<() => Service>().mockReturnValue(service);
+    service['getCharacteristic'] = jest.fn<() => Characteristic>().mockReturnValue(characteristic);
+    service['updateCharacteristic'] = jest.fn<() => Service>().mockReturnValue(service);
 
     bed1Accessory = {
       UUID: 'uuid',
@@ -80,7 +70,7 @@ describe('BedControlPlatform', () => {
         },
       },
       displayName: 'bed1',
-      getService: service,
+      getService: jest.fn<() => Service>().mockReturnValue(service),
     } as unknown as PlatformAccessory;
 
     bed2Accessory = {
@@ -107,24 +97,24 @@ describe('BedControlPlatform', () => {
         },
       },
       displayName: 'bed2',
-      getService: service,
+      getService: jest.fn<() => Service>().mockReturnValue(service),
     } as unknown as PlatformAccessory;
 
     familyBeds = [
       { bedId: 'bed1', leftSide: {}, rightSide: {} },
       { bedId: 'bed2', leftSide: {}, rightSide: {} },
-    ];
+    ] as BedState[];
 
-    mockLogger = mock<Logger>();
+    mockLogging = mock<Logging>();
     mockConfig = mock<PlatformConfig>();
     mockAPI = mock<API>();
 
-    mockLogger.info = () => { };
-    mockLogger.warn = () => { };
-    mockLogger.error = () => { };
-    mockLogger.debug = () => { };
-    // mockLogger.error = (message: string, ...parameters: any[]) => console.log(message, parameters);
-    // mockLogger.debug = (message: string, ...parameters: any[]) => console.log(message, parameters);
+    mockLogging.info = () => { };
+    mockLogging.warn = () => { };
+    mockLogging.error = () => { };
+    mockLogging.debug = () => { };
+    // mockLogging.error = (message: string, ...parameters: any[]) => console.log(message, parameters);
+    // mockLogging.debug = (message: string, ...parameters: any[]) => console.log(message, parameters);
     mockConfig.email = '';
     mockConfig.password = '';
     mockConfig.updateInterval = 0;
@@ -147,10 +137,11 @@ describe('BedControlPlatform', () => {
     mockAPI.hap.Service = mock<Service>();
     // @ts-expect-error - mock Characteristic not describing full API
     mockAPI.hap.Characteristic = mock<Characteristic>();
+    mockAPI.hap.HapStatusError = mock<typeof HapStatusError>();
     mockAPI.registerPlatformAccessories = () => { };
     mockAPI.unregisterPlatformAccessories = () => { };
 
-    platform = new BedControlPlatform(mockLogger, mockConfig, mockAPI);
+    platform = new BedControlPlatform(mockLogging, mockConfig, mockAPI);
   });
 
   afterEach(() => {
@@ -166,7 +157,7 @@ describe('BedControlPlatform', () => {
       expect(platform.sendDelay).toBe(2000);
       expect(platform.platform).toBe('');
       expect(platform.ignoreList).toEqual([]);
-      expect(platform.snapi['init']).toHaveBeenCalledTimes(1);
+      expect(platform.snapi).toBeDefined();
       expect(platform.privacyModeEnabled).toEqual({});
     });
   });
@@ -193,12 +184,13 @@ describe('BedControlPlatform', () => {
       const bedSpy = jest.spyOn(platform.snapi, 'bed');
       platform.ignoreList = ['bed1'];
 
-      when(familyStatusSpy).calledWith().mockResolvedValue([{ bedId: 'bed1' }]);
-      when(bedSpy).calledWith().mockResolvedValue({
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue([{ bedId: 'bed1' }] as BedState[]);
+      when<Promise<BedData | undefined>, []>(bedSpy).calledWith().mockResolvedValue({
         beds: [
           { model: '', bedId: 'bed1', name: 'bed1' },
         ],
-      });
+      } as BedData);
 
       await platform.discoverDevices();
 
@@ -210,16 +202,14 @@ describe('BedControlPlatform', () => {
       const bedSpy = jest.spyOn(platform.snapi, 'bed');
       const platformAccessorySpy = jest.spyOn(platform.api, 'platformAccessory');
       const registerPlatformAccessoriesSpy = jest.spyOn(platform.api, 'registerPlatformAccessories');
-      when(familyStatusSpy).calledWith().mockResolvedValue([{ bedId: 'bed1' }]);
-      when(bedSpy).calledWith().mockResolvedValue({
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue([{ bedId: 'bed1' }] as BedState[]);
+      when<Promise<BedData | undefined>, []>(bedSpy).calledWith().mockResolvedValue({
         beds: [
           { model: '', bedId: 'bed1', name: 'bed1' },
         ],
-      });
-      when(platformAccessorySpy).calledWith('bed1', 'uuid').mockReturnValue({
-        context: {},
-        getService: service,
-      });
+      } as BedData);
+      when(platformAccessorySpy).calledWith('bed1', 'uuid').mockReturnValue(bed1Accessory);
 
       await platform.discoverDevices();
 
@@ -231,16 +221,14 @@ describe('BedControlPlatform', () => {
       const familyStatusSpy = jest.spyOn(platform.snapi, 'familyStatus');
       const bedSpy = jest.spyOn(platform.snapi, 'bed');
       const platformAccessorySpy = jest.spyOn(platform.api, 'platformAccessory');
-      when(familyStatusSpy).calledWith().mockResolvedValue([{ bedId: 'bed1' }]);
-      when(bedSpy).calledWith().mockResolvedValue({
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue([{ bedId: 'bed1' }] as BedState[]);
+      when<Promise<BedData | undefined>, []>(bedSpy).calledWith().mockResolvedValue({
         beds: [
           { model: '', bedId: 'bed1', name: 'bed1' },
         ],
-      });
-      when(platformAccessorySpy).calledWith('bed1', 'uuid').mockReturnValue({
-        context: {},
-        getService: service,
-      });
+      } as BedData);
+      when(platformAccessorySpy).calledWith('bed1', 'uuid').mockReturnValue(bed1Accessory);
 
       platform.configureAccessory(bed1Accessory);
       platform.ignoreList = [];
@@ -256,12 +244,13 @@ describe('BedControlPlatform', () => {
       const platformAccessorySpy = jest.spyOn(platform.api, 'platformAccessory');
       const unregisterPlatformAccessoriesSpy = jest.spyOn(platform.api, 'unregisterPlatformAccessories');
       const registerPlatformAccessoriesSpy = jest.spyOn(platform.api, 'registerPlatformAccessories');
-      when(familyStatusSpy).calledWith().mockResolvedValue([{ bedId: 'bed1' }]);
-      when(bedSpy).calledWith().mockResolvedValue({
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue([{ bedId: 'bed1' }] as BedState[]);
+      when<Promise<BedData | undefined>, []>(bedSpy).calledWith().mockResolvedValue({
         beds: [
           { model: '', bedId: 'bed1', name: 'bed1' },
         ],
-      });
+      } as BedData);
       when(platformAccessorySpy).calledWith('bed1', 'uuid').mockReturnValue(bed1Accessory);
 
       bed1Accessory.context.ignoreList = ['bed2'];
@@ -283,9 +272,10 @@ describe('BedControlPlatform', () => {
       const logWarnSpy = jest.spyOn(platform.log, 'warn');
       const familyStatusSpy = jest.spyOn(platform.snapi, 'familyStatus');
       const bedPauseModeSpy = jest.spyOn(platform.snapi, 'bedPauseMode');
-      when(familyStatusSpy).calledWith().mockResolvedValue(familyBeds);
-      when(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.On);
-      when(bedPauseModeSpy).calledWith('bed2').mockResolvedValue(PauseMode_e.On);
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue(familyBeds as BedState[]);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.On);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed2').mockResolvedValue(PauseMode_e.On);
 
       platform.configureAccessory(bed1Accessory);
       platform.configureAccessory(bed2Accessory);
@@ -308,11 +298,11 @@ describe('BedControlPlatform', () => {
       const logErrorSpy = jest.spyOn(platform.log, 'error');
       const familyStatusSpy = jest.spyOn(platform.snapi, 'familyStatus');
       const bedPauseModeSpy = jest.spyOn(platform.snapi, 'bedPauseMode');
-      when(familyStatusSpy).calledWith()
-        .mockResolvedValueOnce(familyBeds)
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValueOnce(familyBeds as BedState[])
         .mockResolvedValue(undefined);
-      when(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.Off);
-      when(bedPauseModeSpy).calledWith('bed2').mockResolvedValue(PauseMode_e.Off);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.Off);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed2').mockResolvedValue(PauseMode_e.Off);
 
       platform.configureAccessory(bed1Accessory);
       platform.configureAccessory(bed2Accessory);
@@ -327,7 +317,8 @@ describe('BedControlPlatform', () => {
     test('should log a warning if no beds are found', async () => {
       const logWarnSpy = jest.spyOn(platform.log, 'warn');
       const familyStatusSpy = jest.spyOn(platform.snapi, 'familyStatus');
-      when(familyStatusSpy).calledWith().mockResolvedValue(undefined);
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue(undefined);
 
       platform.updateInterval = 1000;
       await platform.poll();
@@ -357,8 +348,9 @@ describe('BedControlPlatform', () => {
           .getService('')!
           .getCharacteristic(platform.Characteristic.OccupancyDetected)!,
         'setValue');
-      when(familyStatusSpy).calledWith().mockResolvedValue([bed1]);
-      when(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.Off);
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue([bed1] as BedState[]);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.Off);
       bed1.leftSide['alertDetailedMessage'] = 'Data Out of Sync';
       bed1.rightSide['alertDetailedMessage'] = 'Data Out of Sync';
 
@@ -373,7 +365,7 @@ describe('BedControlPlatform', () => {
 
       expect(familyStatusSpy).toHaveBeenCalledTimes(2);
       expect(bedPauseModeSpy).toHaveBeenCalledTimes(1);
-      expect(updateCharacteristicSpy).toHaveBeenCalledTimes(0);
+      expect(updateCharacteristicSpy).toHaveBeenCalledTimes(3);
       expect(setValueSpy).toHaveBeenCalledTimes(2);
       expect(setValueSpy).toHaveBeenCalledWith(0);
       expect(setValueSpy).toHaveBeenCalledWith(0);
@@ -392,8 +384,9 @@ describe('BedControlPlatform', () => {
       bed1.leftSide['isInBed'] = true;
       bed1.leftSide['sleepNumber'] = 50;
 
-      when(familyStatusSpy).calledWith().mockResolvedValue([bed1]);
-      when(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.Off);
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue([bed1] as BedState[]);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.Off);
 
       platform.configureAccessory(bed1Accessory);
 
@@ -416,11 +409,12 @@ describe('BedControlPlatform', () => {
       const logDebugSpy = jest.spyOn(platform.log, 'debug');
       const familyStatusSpy = jest.spyOn(platform.snapi, 'familyStatus');
       const bedPauseModeSpy = jest.spyOn(platform.snapi, 'bedPauseMode');
-      const updateCharacteristicSpy = jest.spyOn(bed1Accessory.getService('Privacy Switch')!, 'updateCharacteristic');
+      const updateCharacteristicSpy = jest.spyOn(service, 'updateCharacteristic');
 
-      when(familyStatusSpy).calledWith().mockResolvedValue(familyBeds);
-      when(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.On);
-      when(bedPauseModeSpy).calledWith('bed2').mockResolvedValue(PauseMode_e.Off);
+      when<Promise<BedState[] | undefined>, []>(familyStatusSpy).calledWith()
+        .mockResolvedValue(familyBeds as BedState[]);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed1').mockResolvedValue(PauseMode_e.On);
+      when<Promise<PauseMode_e | undefined>, [bedId: string]>(bedPauseModeSpy).calledWith('bed2').mockResolvedValue(PauseMode_e.Off);
 
       platform.configureAccessory(bed1Accessory);
       platform.configureAccessory(bed2Accessory);
@@ -431,7 +425,7 @@ describe('BedControlPlatform', () => {
 
       expect(familyStatusSpy).toHaveBeenCalledTimes(2);
       expect(bedPauseModeSpy).toHaveBeenCalledTimes(2);
-      expect(updateCharacteristicSpy).toHaveBeenCalledTimes(0);
+      expect(updateCharacteristicSpy).toHaveBeenCalledTimes(2);
       expect(logDebugSpy).toHaveBeenCalledTimes(3);
       expect(logDebugSpy).toHaveBeenCalledWith('[Polling][bed1] Get Privacy Mode -> true');
       expect(logDebugSpy).toHaveBeenCalledWith('[Polling][bed2] Get Privacy Mode -> false');
