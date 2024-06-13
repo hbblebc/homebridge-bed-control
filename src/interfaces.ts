@@ -1,5 +1,5 @@
 import { HeaterCooler, Lightbulb, OccupancySensor, Outlet, Switch } from 'homebridge/node_modules/hap-nodejs/dist/lib/definitions';
-import { BedSideKey_e, Outlets_e } from './snapi/interfaces';
+import { BedSideKey_e, Outlets_e } from './snapi/interfaces.js';
 
 
 export interface PrivacyMode {

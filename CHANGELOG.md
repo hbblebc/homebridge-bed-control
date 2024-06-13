@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.3 (2024-06-12)
+
+### Bug Fixes
+
+- Fix missing file extensions with migration to ESM
+
 ## v1.3.2 (2024-06-11)
 
 ### Bug Fixes

@@ -1,6 +1,6 @@
 import { PlatformAccessory, CharacteristicValue, HAPStatus } from 'homebridge';
 
-import { BedControlPlatform } from './platform';
+import { BedControlPlatform } from './platform.js';
 import {
   Actuator_e,
   BedSide_e,
@@ -15,9 +15,9 @@ import {
   ResponsiveAirStatusData,
   PumpStatusData,
   BatchRequests,
-} from './snapi/interfaces';
-import Snapi from './snapi/snapi';
-import { DelayActuator, DelaySleepNumber, Services, BedOutlets, OutletSetup, BedsideOutlets } from './interfaces';
+} from './snapi/interfaces.js';
+import Snapi from './snapi/snapi.js';
+import { DelayActuator, DelaySleepNumber, Services, BedOutlets, OutletSetup, BedsideOutlets } from './interfaces.js';
 
 
 export class BedAccessory {

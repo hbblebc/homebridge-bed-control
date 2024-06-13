@@ -5,14 +5,14 @@ import {
   PlatformAccessory,
   PlatformConfig,
   Service,
-  Characteristic
+  Characteristic,
 } from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import Snapi from './snapi/snapi';
-import { BedSideKey_e, BedState, Outlets_e, PauseMode_e } from './snapi/interfaces';
-import { BedAccessory } from './bedAccessory';
-import { BedFeatures, OutOfSyncMessages, PrivacyMode, SideFeatures } from './interfaces';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
+import Snapi from './snapi/snapi.js';
+import { BedSideKey_e, BedState, Outlets_e, PauseMode_e } from './snapi/interfaces.js';
+import { BedAccessory } from './bedAccessory.js';
+import { BedFeatures, OutOfSyncMessages, PrivacyMode, SideFeatures } from './interfaces.js';
 
 
 /**

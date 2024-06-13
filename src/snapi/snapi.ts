@@ -14,7 +14,7 @@ import { Logger } from 'homebridge';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
-import './string';
+import './string.js';
 import {
   loginURL,
   registrationURL,
@@ -37,7 +37,7 @@ import {
   adjustmentURL,
   sleepDataURL,
   sleepSliceDataURL,
-} from './constants';
+} from './constants.js';
 import {
   LoginData,
   RegistrationData,
@@ -72,7 +72,7 @@ import {
   SleepDataData,
   SleepSliceDataData,
   BatchRequests,
-} from './interfaces';
+} from './interfaces.js';
 
 const jar = new CookieJar();
 const client = wrapper(axios.create({ jar, withCredentials: true }));
