@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.8 (2024-06-13)
+
+### Bug Fixes
+
+- update readme
+
 ## v1.3.7 (2024-06-13)
 
 ### Bug Fixes

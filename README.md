@@ -27,7 +27,7 @@ This plugin uses a cloud API to control the beds (rather than a local network AP
 
 # Installation
 
-Install through homebridge-config-ui-x.ivanti192.
+Install through homebridge-config-ui-x.
 
 # Configuration
 
