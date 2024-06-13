@@ -43,7 +43,7 @@ export class BedControlPlatform implements DynamicPlatformPlugin {
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
-    
+
     this.Service = api.hap.Service;
     this.Characteristic = api.hap.Characteristic;
 

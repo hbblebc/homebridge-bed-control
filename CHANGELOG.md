@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.4 (2024-06-12)
+
+### Bug Fixes
+
+- Fix missed logging type change
+
 ## v1.3.3 (2024-06-12)
 
 ### Bug Fixes

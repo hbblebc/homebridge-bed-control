@@ -10,7 +10,7 @@
  * retry wrapper that will handle authenication when necessary.
  */
 
-import { Logger } from 'homebridge';
+import { Logging } from 'homebridge';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
@@ -90,7 +90,7 @@ class snapi {
   constructor(
     private readonly username: string,
     private readonly password: string,
-    public readonly log?: Logger | Console,
+    public readonly log?: Logging | Console,
   ) {
     if (log === undefined) {
       this.log = console;
