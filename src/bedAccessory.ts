@@ -33,7 +33,6 @@ export class BedAccessory {
     [BedSideKey_e.RightSide]: {},
   };
 
-
   public services: Services = {};
 
   constructor(
@@ -82,6 +81,9 @@ export class BedAccessory {
 
         this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
           .onGet((async () => this.getOccupancy(side)).bind(this));
+
+        this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.StatusActive)
+          .onGet((async () => !this.platform.privacyModeEnabled[this.bedId]).bind(this));
       }
 
 
@@ -119,13 +121,13 @@ export class BedAccessory {
         const outlets: OutletSetup[] = [
           {
             outletEnabled: this.accessory.context.bedFeatures[side].outlet,
-            outletService: this.services[side]!.outlet,
+            outletService: this.services[side]?.outlet,
             outletName: 'Outlet',
             outletValue: outletSideValues[side].outlet,
           },
           {
             outletEnabled: this.accessory.context.bedFeatures.leftSide.light,
-            outletService: this.services[side]!.light,
+            outletService: this.services[side]?.light,
             outletName: 'Light',
             outletValue: outletSideValues[side].light,
           },
@@ -139,7 +141,7 @@ export class BedAccessory {
               this.accessory.addService(
                 this.platform.Service.Outlet,
                 `${side} ${outlet.outletName} Control`,
-                this.bedId + `${side}${outlet.outletName}Control`,
+                `${this.bedId}${side}${outlet.outletName}Control`,
               );
 
             outlet.outletService!.getCharacteristic(this.platform.Characteristic.On)
@@ -201,15 +203,13 @@ export class BedAccessory {
 
       this.services.anySide.occupancySensor.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
         .onGet(this.getAnyOccupancy.bind(this));
+
+      this.services.anySide.occupancySensor.getCharacteristic(this.platform.Characteristic.StatusActive)
+        .onGet((async () => !this.platform.privacyModeEnabled[this.bedId]).bind(this));
     }
 
 
     // Set up outlets and lights
-    // const outlets = {
-    //   outlet: 'Outlet',
-    //   light: 'Light',
-    // };
-
     const outlets: OutletSetup[] = [
       {
         outletEnabled: this.accessory.context.bedFeatures.anySide.outlet,
@@ -232,8 +232,8 @@ export class BedAccessory {
           this.accessory.getService(`anySide ${outlet.outletName} Control`) ||
           this.accessory.addService(
             this.platform.Service.Outlet,
-            `anySide ${outlet.outletService} Control`,
-            this.bedId + `anySide${outlet.outletService}Control`,
+            `anySide ${outlet.outletName} Control`,
+            this.bedId + `anySide${outlet.outletName}Control`,
           );
 
         outlet.outletService!.getCharacteristic(this.platform.Characteristic.On)
@@ -297,9 +297,6 @@ export class BedAccessory {
       if (data !== undefined) {
         const isInBed = data[side].isInBed ? 1 : 0;
         this.platform.log.debug(`[${this.bedName}][${side}] Get Occupancy -> ${isInBed}`);
-        if (this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.StatusActive).value !== true) {
-          this.services[side]!.occupancySensor!.updateCharacteristic(this.platform.Characteristic.StatusActive, true);
-        }
         return isInBed;
       } else {
         this.platform.log.error(
@@ -308,9 +305,6 @@ export class BedAccessory {
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
-      if (this.services[side]!.occupancySensor!.getCharacteristic(this.platform.Characteristic.StatusActive).value !== false) {
-        this.services[side]!.occupancySensor!.updateCharacteristic(this.platform.Characteristic.StatusActive, false);
-      }
       return 0;
     }
   }
@@ -322,7 +316,6 @@ export class BedAccessory {
       if (data !== undefined) {
         const isInBed = (data.leftSide.isInBed || data.rightSide.isInBed) ? 1 : 0;
         this.platform.log.debug(`[${this.bedName}][anySide] Get Occupancy -> ${isInBed}`);
-        this.services.anySide!.occupancySensor!.setCharacteristic(this.platform.Characteristic.StatusActive, true);
         return isInBed;
       } else {
         this.platform.log.error(
@@ -331,7 +324,6 @@ export class BedAccessory {
       }
     } else {
       this.platform.log.debug(`[${this.bedName}][getOccupancy] Privacy mode enabled, skipping occupancy check`);
-      this.services.anySide!.occupancySensor!.setCharacteristic(this.platform.Characteristic.StatusActive, false);
       return 0;
     }
   }

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.5 (2024-06-12)
+
+### Bug Fixes
+
+- Fix StatusActive bug in occupancy sensor
+
 ## v1.3.4 (2024-06-12)
 
 ### Bug Fixes
