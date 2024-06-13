@@ -408,10 +408,10 @@ describe('BedAccessory', () => {
 
   test('should get the position for the left side head actuator', async () => {
     const data = {
-      fsLeftHeadPosition: 50,
-      fsRightHeadPosition: 60,
-      fsLeftFootPosition: 70,
-      fsRightFootPosition: 80,
+      fsLeftHeadPosition: '32',
+      fsRightHeadPosition: '3c',
+      fsLeftFootPosition: '46',
+      fsRightFootPosition: '50',
     } as unknown as FoundationStatusData;
     jest.spyOn(bedAccessory, 'getFoundationStatus').mockResolvedValue(data);
     const result = await bedAccessory.getActuatorPosition(BedSideKey_e.LeftSide, Actuator_e.Head);
@@ -420,10 +420,10 @@ describe('BedAccessory', () => {
 
   test('should get the position for the left side foot actuator', async () => {
     const data = {
-      fsLeftHeadPosition: 50,
-      fsRightHeadPosition: 60,
-      fsLeftFootPosition: 70,
-      fsRightFootPosition: 80,
+      fsLeftHeadPosition: '32',
+      fsRightHeadPosition: '3c',
+      fsLeftFootPosition: '46',
+      fsRightFootPosition: '50',
     } as unknown as FoundationStatusData;
     jest.spyOn(bedAccessory, 'getFoundationStatus').mockResolvedValue(data);
     const result = await bedAccessory.getActuatorPosition(BedSideKey_e.LeftSide, Actuator_e.Foot);
@@ -432,10 +432,10 @@ describe('BedAccessory', () => {
 
   test('should get the position for the right side head actuator', async () => {
     const data = {
-      fsLeftHeadPosition: 50,
-      fsRightHeadPosition: 60,
-      fsLeftFootPosition: 70,
-      fsRightFootPosition: 80,
+      fsLeftHeadPosition: '32',
+      fsRightHeadPosition: '3c',
+      fsLeftFootPosition: '46',
+      fsRightFootPosition: '50',
     } as unknown as FoundationStatusData;
     jest.spyOn(bedAccessory, 'getFoundationStatus').mockResolvedValue(data);
     const result = await bedAccessory.getActuatorPosition(BedSideKey_e.RightSide, Actuator_e.Head);
@@ -444,10 +444,10 @@ describe('BedAccessory', () => {
 
   test('should get the position for the right side foot actuator', async () => {
     const data = {
-      fsLeftHeadPosition: 50,
-      fsRightHeadPosition: 60,
-      fsLeftFootPosition: 70,
-      fsRightFootPosition: 80,
+      fsLeftHeadPosition: '32',
+      fsRightHeadPosition: '3c',
+      fsLeftFootPosition: '46',
+      fsRightFootPosition: '50',
     } as unknown as FoundationStatusData;
     jest.spyOn(bedAccessory, 'getFoundationStatus').mockResolvedValue(data);
     const result = await bedAccessory.getActuatorPosition(BedSideKey_e.RightSide, Actuator_e.Foot);

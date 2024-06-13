@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.7 (2024-06-13)
+
+### Bug Fixes
+
+- Merge #7, fix actuator position radix bug
+
 ## v1.3.6 (2024-06-13)
 
 ### Bug Fixes

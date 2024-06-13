@@ -354,6 +354,7 @@ export class BedAccessory {
 
 
   async setActuatorPosition(side: BedSideKey_e, actuator: Actuator_e, value: number) {
+    // Position is sent to the API in decimal 0-100
     this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Set Position -> ${value}`);
     // @ts-expect-error the debounce wrapper is hiding the number of args
     this.adjustActuator[side][actuator](this.bedId, BedSide_e[side], value, actuator);
@@ -361,13 +362,14 @@ export class BedAccessory {
 
 
   async getActuatorPosition(side: BedSideKey_e, actuator: Actuator_e): Promise<CharacteristicValue> {
+    // Position is received from the API in hex 0x00-0x64
     const data = await this.getFoundationStatus();
     if (data !== undefined) {
       let actuatorPosition: number;
       switch (`${side}${actuator}`) {
-        case `${BedSideKey_e.LeftSide}${Actuator_e.Head}`  : actuatorPosition = parseInt(data.fsLeftHeadPosition, 16); break;
+        case `${BedSideKey_e.LeftSide}${Actuator_e.Head}` : actuatorPosition = parseInt(data.fsLeftHeadPosition, 16); break;
         case `${BedSideKey_e.RightSide}${Actuator_e.Head}` : actuatorPosition = parseInt(data.fsRightHeadPosition, 16); break;
-        case `${BedSideKey_e.LeftSide}${Actuator_e.Foot}`  : actuatorPosition = parseInt(data.fsLeftFootPosition, 16); break;
+        case `${BedSideKey_e.LeftSide}${Actuator_e.Foot}` : actuatorPosition = parseInt(data.fsLeftFootPosition, 16); break;
         case `${BedSideKey_e.RightSide}${Actuator_e.Foot}` : actuatorPosition = parseInt(data.fsRightFootPosition, 16); break;
       }
       this.platform.log.debug(`[${this.bedName}][${side}][${actuator}] Get Position -> ${actuatorPosition!}`);

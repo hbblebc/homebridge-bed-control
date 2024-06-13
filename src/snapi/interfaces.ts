@@ -209,7 +209,7 @@ export interface AdjustData {}
 export interface FoundationStatusData {
   fsCurrentPositionPresetRight: string;
   fsNeedsHoming: boolean;
-  fsRightFootPosition: string;
+  fsRightFootPosition: string;  // hex numbers
   fsLeftPositionTimerLSB: string;
   fsTimerPositionPresetLeft: string;
   fsCurrentPositionPresetLeft: string;
@@ -219,15 +219,15 @@ export interface FoundationStatusData {
   fsTimerPositionPresetRight: string;
   fsType: string;
   fsOutletsOn: boolean;
-  fsLeftHeadPosition: string;
+  fsLeftHeadPosition: string;  // hex numbers
   fsIsMoving: boolean;
   fsRightHeadActuatorMotorStatus: string;
   fsStatusSummary: string;
   fsTimerPositionPreset: string;
-  fsLeftFootPosition: string;
+  fsLeftFootPosition: string;  // hex numbers
   fsRightPositionTimerLSB: string;
   fsTimedOutletsOn: boolean;
-  fsRightHeadPosition: string;
+  fsRightHeadPosition: string;  // hex numbers
   fsConfigured: boolean;
   fsRightPositionTimerMSB: string;
   fsLeftHeadActuatorMotorStatus: string;

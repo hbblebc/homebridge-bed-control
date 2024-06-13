@@ -2,6 +2,8 @@ import { expect, test, beforeAll, describe } from '@jest/globals';
 import dotenv from 'dotenv';
 import Snapi from '../src/snapi/snapi';
 import { LoginData, BedData, BedSide_e, Actuator_e, Outlets_e, Preset_e, Adjustment_e, Motion_e } from '../src/snapi/interfaces';
+import { Logging } from 'homebridge';
+import { mock } from 'ts-jest-mocker';
 
 dotenv.config();
 
@@ -9,11 +11,18 @@ describe('snapi', () => {
   let snapi: Snapi;
   let loginResponse: LoginData | undefined;
   let bedResponse: BedData | undefined;
+  let mockLogging: Logging;
 
   beforeAll(async () => {
     const username = process.env.USERNAME;
     const password = process.env.PASSWORD;
-    snapi = new Snapi(username!, password!);
+    mockLogging = mock<Logging>();
+    mockLogging.info = () => { };
+    mockLogging.warn = () => { };
+    mockLogging.error = () => { };
+    mockLogging.debug = () => { };
+
+    snapi = new Snapi(username!, password!, mockLogging);
     loginResponse = await snapi.login();
     bedResponse = await snapi.bed();
   });
