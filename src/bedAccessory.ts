@@ -126,7 +126,7 @@ export class BedAccessory {
             outletValue: outletSideValues[side].outlet,
           },
           {
-            outletEnabled: this.accessory.context.bedFeatures.leftSide.light,
+            outletEnabled: this.accessory.context.bedFeatures[side].light,
             outletService: this.services[side]?.light,
             outletName: 'Light',
             outletValue: outletSideValues[side].light,
@@ -213,13 +213,13 @@ export class BedAccessory {
     const outlets: OutletSetup[] = [
       {
         outletEnabled: this.accessory.context.bedFeatures.anySide.outlet,
-        outletService: this.services.anySide!.outlet,
+        outletService: this.services.anySide?.outlet,
         outletName: 'Outlet',
         outletKey: 'outlet',
       },
       {
         outletEnabled: this.accessory.context.bedFeatures.anySide.light,
-        outletService: this.services.anySide!.light,
+        outletService: this.services.anySide?.light,
         outletName: 'Light',
         outletKey: 'light',
       },

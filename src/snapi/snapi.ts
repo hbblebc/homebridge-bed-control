@@ -125,6 +125,7 @@ class snapi {
             return await this.retry(caller, func, count + 1);
           } else if (e.response?.statusText === 'Not Found') {
             this.log!.debug(`[snapi][${caller}] Function returned 404 from API.`);
+            this.log!.debug(JSON.stringify(e));
             throw e;
           }
         } else {

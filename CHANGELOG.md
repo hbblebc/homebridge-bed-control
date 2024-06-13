@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.3.6 (2024-06-13)
+
+### Bug Fixes
+
+- Fix outlet setup bug
+
 ## v1.3.5 (2024-06-12)
 
 ### Bug Fixes
